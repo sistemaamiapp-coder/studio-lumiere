@@ -49,8 +49,12 @@ npm test
 ```
 
 O teste de fumaça sobe o servidor com um banco temporário e exercita login, agenda,
-disponibilidade, agendamento online, Pix, painel e permissões. O mesmo roteiro roda no
-GitHub Actions a cada push/PR (`.github/workflows/ci.yml`).
+disponibilidade, agendamento online, Pix, painel e permissões.
+
+## Automação
+
+- `npm test` valida o fluxo completo sem tocar no banco real.
+- Dependabot abre PRs semanais de atualização das dependências (`.github/dependabot.yml`).
 
 ## Estrutura
 
