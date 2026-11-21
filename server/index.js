@@ -1022,7 +1022,7 @@ server.listen(PORT, '0.0.0.0', () => {
   console.log(`  ${BUSINESS.name} — sistema no ar`);
   console.log(`  Site........: http://localhost:${PORT}`);
   console.log(`  Painel......: http://localhost:${PORT}/admin.html`);
-  console.log(`  Admin.......: ${ADMIN.email} / ${ADMIN.password}`);
+  console.log(`  Admin.......: ${ADMIN.email}`);
   console.log(`  Cliente demo: ${DEMO_CLIENT.email} / ${DEMO_CLIENT.password}`);
   console.log('');
 });

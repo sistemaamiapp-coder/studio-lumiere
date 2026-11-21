@@ -28,11 +28,12 @@ export const BUSINESS = {
 };
 
 // Acesso administrativo criado no primeiro start.
+// A senha vem de LUMIERE_ADMIN_PASSWORD; sem a variável, uma senha aleatória
+// é gerada e mostrada uma única vez no console.
 export const ADMIN = {
   name: 'Studio Lumière',
   email: 'studio@lumiere.com.br',
-  phone: '27999990000',
-  password: 'lumiere2026'
+  phone: '27999990000'
 };
 
 // Conta de demonstração para clientes.

@@ -10,6 +10,7 @@ import { ADMIN, DEMO_CLIENT } from '../server/config.js';
 
 const PORT = Number(process.env.SMOKE_PORT) || 3179;
 const BASE = `http://127.0.0.1:${PORT}`;
+const ADMIN_PASSWORD = 'smoke-admin-2026';
 const dataDir = fs.mkdtempSync(path.join(os.tmpdir(), 'lumiere-smoke-'));
 
 let server;
@@ -17,7 +18,7 @@ let output = '';
 
 function startServer() {
   server = spawn(process.execPath, ['server/index.js'], {
-    env: { ...process.env, PORT: String(PORT), LUMIERE_DATA_DIR: dataDir },
+    env: { ...process.env, PORT: String(PORT), LUMIERE_DATA_DIR: dataDir, LUMIERE_ADMIN_PASSWORD: ADMIN_PASSWORD },
     stdio: ['ignore', 'pipe', 'pipe']
   });
   server.stdout.on('data', chunk => { output += chunk; });
@@ -87,7 +88,7 @@ async function main() {
   assert.ok(site.data.services.length > 0, 'seed sem serviços');
   assert.ok(site.data.business.depositPercent > 0);
 
-  const adminCookie = await login(ADMIN.email, ADMIN.password);
+  const adminCookie = await login(ADMIN.email, ADMIN_PASSWORD);
   for (const path of ['/api/admin/overview', '/api/admin/clients', '/api/admin/services', '/api/admin/finance', '/api/admin/reminders', '/api/admin/maintenance']) {
     const res = await call(path, { cookie: adminCookie });
     assert.equal(res.status, 200, `${path} falhou: ${JSON.stringify(res.data)}`);

@@ -23,10 +23,14 @@ npm start
 O banco (`data/studio.db`) é criado e populado com dados de demonstração no primeiro start.
 Acessos iniciais:
 
-| Perfil  | E-mail                 | Senha        |
-| ------- | ---------------------- | ------------ |
-| Estúdio | `studio@lumiere.com.br`| `lumiere2026`|
-| Cliente | `cliente@demo.com`     | `demo1234`   |
+| Perfil  | E-mail                  | Senha                                              |
+| ------- | ----------------------- | -------------------------------------------------- |
+| Estúdio | `studio@lumiere.com.br` | definida em `LUMIERE_ADMIN_PASSWORD` ou gerada no primeiro start |
+| Cliente | `cliente@demo.com`      | `demo1234`                                         |
+
+A senha do painel não fica no código: no primeiro start o sistema usa a variável
+`LUMIERE_ADMIN_PASSWORD`; se ela não existir, gera uma senha aleatória e mostra no console
+uma única vez.
 
 ## Personalizando o estúdio
 
@@ -37,10 +41,11 @@ painel são gravadas em `uploads/`.
 
 ## Variáveis de ambiente
 
-| Variável            | Padrão          | Uso                                             |
-| ------------------- | --------------- | ----------------------------------------------- |
-| `PORT`              | `3000`          | Porta HTTP                                      |
-| `LUMIERE_DATA_DIR`  | `./data`        | Pasta do SQLite (usada pelo teste para isolar)  |
+| Variável                  | Padrão          | Uso                                                          |
+| ------------------------- | --------------- | ------------------------------------------------------------ |
+| `PORT`                    | `3000`          | Porta HTTP                                                   |
+| `LUMIERE_DATA_DIR`        | `./data`        | Pasta do SQLite (usada pelo teste para isolar)               |
+| `LUMIERE_ADMIN_PASSWORD`  | aleatória       | Senha do estúdio criada no primeiro start (só vale no seed)  |
 
 ## Testes
 

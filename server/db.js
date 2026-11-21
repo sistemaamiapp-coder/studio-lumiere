@@ -1,4 +1,5 @@
 import { DatabaseSync } from 'node:sqlite';
+import crypto from 'node:crypto';
 import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -96,6 +97,14 @@ function seed() {
   const count = db.prepare('SELECT COUNT(*) AS n FROM users').get().n;
   if (count > 0) return;
 
+  const adminPassword = process.env.LUMIERE_ADMIN_PASSWORD || crypto.randomBytes(9).toString('base64url');
+  if (!process.env.LUMIERE_ADMIN_PASSWORD) {
+    console.log('');
+    console.log(`  Senha inicial do painel (${ADMIN.email}): ${adminPassword}`);
+    console.log('  Anote esta senha — ela não será exibida novamente.');
+    console.log('');
+  }
+
   const today = toISO();
   const nowIso = new Date().toISOString();
   const insertUser = db.prepare(`
@@ -105,7 +114,7 @@ function seed() {
 
   db.exec('BEGIN');
   try {
-    insertUser.run(ADMIN.name, ADMIN.email, ADMIN.phone, hashPassword(ADMIN.password), null, 'admin', 'Conta principal do estúdio.', nowIso);
+    insertUser.run(ADMIN.name, ADMIN.email, ADMIN.phone, hashPassword(adminPassword), null, 'admin', 'Conta principal do estúdio.', nowIso);
 
     const year = new Date().getFullYear();
     const demoMonth = String(new Date().getMonth() + 1).padStart(2, '0');
