@@ -1,0 +1,158 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Agendar horário — Studio Lumière</title>
+  <meta name="description" content="Escolha seu serviço, veja os horários livres em tempo real e garanta seu atendimento com sinal via Pix.">
+  <meta name="theme-color" content="#FBF6F2">
+  <link rel="icon" href="/img/favicon.svg" type="image/svg+xml">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,300..600;1,9..144,300..500&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/css/style.css">
+  <link rel="stylesheet" href="/css/booking.css">
+</head>
+<body class="page-static booking-page">
+  <header class="site-head">
+    <div class="wrap head-inner">
+      <a class="brand" href="/" aria-label="Studio Lumière, início">
+        <span class="brand-word">Lumière</span>
+        <span class="brand-sub">lash &amp; nails</span>
+      </a>
+      <nav class="site-nav booking-nav" aria-label="Navegação">
+        <a href="/">Voltar ao site</a>
+        <a href="/minha-conta">Meus agendamentos</a>
+      </nav>
+      <div class="head-actions">
+        <a class="quiet-link wa-link" data-wa href="#" target="_blank" rel="noopener">WhatsApp</a>
+        <a class="btn btn-outline" href="/entrar" id="headAccount">Entrar</a>
+      </div>
+      <button class="menu-btn" aria-label="Abrir menu" aria-expanded="false">
+        <span class="icon" data-icon="menu" data-size="22"></span>
+      </button>
+    </div>
+    <div class="mobile-nav">
+      <a href="/">Voltar ao site</a>
+      <a href="/minha-conta">Meus agendamentos</a>
+      <a href="/entrar">Entrar na minha conta</a>
+    </div>
+  </header>
+
+  <main class="booking-shell">
+    <div class="wrap">
+      <div class="booking-intro">
+        <a class="link-back" href="/">
+          <span class="icon" data-icon="arrowLeft" data-size="15"></span>
+          Início
+        </a>
+        <span class="eyebrow"><span class="dot"></span> Agendamento online · 24 horas</span>
+        <h1>Escolha seu <em>horário</em>.</h1>
+        <p class="lead">Serviço, dia e hora em poucos passos. O horário fica reservado na hora e você garante com sinal via Pix.</p>
+      </div>
+
+      <div class="booking-grid">
+        <section class="booking-main" aria-live="polite">
+          <ol class="stepper" id="stepper">
+            <li data-step="1" class="active"><span>1</span><em>Serviço</em></li>
+            <li data-step="2"><span>2</span><em>Dia e hora</em></li>
+            <li data-step="3"><span>3</span><em>Seus dados</em></li>
+            <li data-step="4"><span>4</span><em>Confirmar</em></li>
+          </ol>
+
+          <div class="step-panel" id="step1" data-panel="1">
+            <div class="panel-head">
+              <div>
+                <h2 class="panel-title">Qual cuidado você quer hoje?</h2>
+                <p class="panel-sub">Todos os serviços incluem avaliação e acabamento caprichado.</p>
+              </div>
+            </div>
+            <div id="serviceList" class="service-picker"><div class="loading-row"><span class="spinner"></span> Carregando serviços...</div></div>
+          </div>
+
+          <div class="step-panel" id="step2" data-panel="2" hidden>
+            <div class="panel-head">
+              <div>
+                <h2 class="panel-title">Escolha o dia</h2>
+                <p class="panel-sub" id="slotHint">Horários livres atualizados em tempo real.</p>
+              </div>
+              <button class="btn btn-quiet btn-sm" data-back="1"><span class="icon" data-icon="arrowLeft" data-size="14"></span> Trocar serviço</button>
+            </div>
+            <div class="date-strip" id="dateStrip"></div>
+            <div class="slot-area" id="slotArea"></div>
+          </div>
+
+          <div class="step-panel" id="step3" data-panel="3" hidden>
+            <div class="panel-head">
+              <div>
+                <h2 class="panel-title">Quem vai se cuidar?</h2>
+                <p class="panel-sub">Seus dados ficam só com o estúdio e ajudam no seu histórico.</p>
+              </div>
+              <button class="btn btn-quiet btn-sm" data-back="2"><span class="icon" data-icon="arrowLeft" data-size="14"></span> Trocar horário</button>
+            </div>
+            <div id="identifyArea"></div>
+          </div>
+
+          <div class="step-panel" id="step4" data-panel="4" hidden>
+            <div class="panel-head">
+              <div>
+                <h2 class="panel-title">Confira e confirme</h2>
+                <p class="panel-sub">Depois de confirmar, o horário fica reservado para você.</p>
+              </div>
+              <button class="btn btn-quiet btn-sm" data-back="3"><span class="icon" data-icon="arrowLeft" data-size="14"></span> Voltar</button>
+            </div>
+            <div id="confirmArea"></div>
+          </div>
+
+          <div class="step-panel success-panel" id="step5" data-panel="5" hidden>
+            <div id="successArea"></div>
+          </div>
+        </section>
+
+        <aside class="booking-side">
+          <div class="summary-card" id="summaryCard">
+            <div class="summary-top">
+              <span class="eyebrow eyebrow-plain"><span class="dot"></span> Seu horário</span>
+            </div>
+            <div id="summaryBody"></div>
+          </div>
+          <div class="side-help">
+            <div class="side-help-item">
+              <div class="glyph-soft"><span class="icon" data-icon="pix" data-size="18"></span></div>
+              <div>
+                <strong>Sinal via Pix</strong>
+                <span>Garante o horário. O restante é pago no dia.</span>
+              </div>
+            </div>
+            <div class="side-help-item">
+              <div class="glyph-soft gold"><span class="icon" data-icon="send" data-size="17"></span></div>
+              <div>
+                <strong>Confirmação no WhatsApp</strong>
+                <span>Mensagem pronta no fim do agendamento.</span>
+              </div>
+            </div>
+            <div class="side-help-item">
+              <div class="glyph-soft sage"><span class="icon" data-icon="calendar" data-size="17"></span></div>
+              <div>
+                <strong>Cancelamento online</strong>
+                <span id="cancelPolicy">Até 6h antes, sem burocracia.</span>
+              </div>
+            </div>
+          </div>
+        </aside>
+      </div>
+    </div>
+  </main>
+
+  <footer class="booking-foot">
+    <div class="wrap booking-foot-inner">
+      <span class="brand brand-small"><span class="brand-word">Lumière</span></span>
+      <span id="footAddress">Lash &amp; nails studio</span>
+      <span class="foot-dot">·</span>
+      <a class="wa-link" data-wa href="#" target="_blank" rel="noopener">Falar no WhatsApp</a>
+    </div>
+  </footer>
+
+  <script type="module" src="/js/agendar.js"></script>
+</body>
+</html>

@@ -1,0 +1,11 @@
+node_modules/
+.tools/
+data/
+uploads/
+cookies.txt
+*.log
+.env
+.env.*
+vibe_images/
+.DS_Store
+Thumbs.db

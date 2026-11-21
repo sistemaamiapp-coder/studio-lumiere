@@ -1,0 +1,153 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Painel do estúdio · Studio Lumière</title>
+  <meta name="description" content="Painel interno do Studio Lumière: agenda, clientes, serviços, portfólio e financeiro." />
+  <meta name="robots" content="noindex, nofollow" />
+  <link rel="icon" href="/img/favicon.svg" type="image/svg+xml" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,300..600;1,9..144,300..600&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="/css/style.css" />
+  <link rel="stylesheet" href="/css/admin.css" />
+</head>
+<body class="admin-body">
+  <div id="boot" class="adm-boot">
+    <div class="adm-boot-inner">
+      <span class="brand-word adm-boot-brand">Lumière</span>
+      <div class="loading-row"><span class="spinner"></span> Abrindo o painel do estúdio...</div>
+    </div>
+  </div>
+
+  <!-- Acesso da equipe -->
+  <section id="gate" class="gate" hidden>
+    <div class="gate-card">
+      <div class="gate-brand">
+        <a class="brand" href="/">
+          <span class="brand-word">Lumière</span>
+          <span class="brand-sub">Lash &amp; Nails</span>
+        </a>
+      </div>
+      <div class="gate-copy">
+        <span class="eyebrow"><span class="dot"></span> Área da equipe</span>
+        <h1>Bem-vinda de volta.</h1>
+        <p class="sub">Entre com o acesso do estúdio para abrir a agenda, atender as clientes e acompanhar o caixa.</p>
+      </div>
+      <form id="gateForm" class="gate-form" novalidate>
+        <div class="field">
+          <label for="gateEmail">E-mail do estúdio</label>
+          <input class="input" id="gateEmail" type="email" autocomplete="username" placeholder="studio@lumiere.com.br" required />
+        </div>
+        <div class="field">
+          <label for="gatePassword">Senha</label>
+          <input class="input" id="gatePassword" type="password" autocomplete="current-password" placeholder="Sua senha" required />
+        </div>
+        <p class="field-error" id="gateError" role="alert"></p>
+        <button class="btn btn-primary btn-block btn-lg" id="gateSubmit" type="submit">Abrir painel</button>
+      </form>
+      <div class="gate-foot">
+        <a class="quiet-link" href="/">Voltar ao site</a>
+        <span class="foot-dot"></span>
+        <a class="quiet-link" href="/minha-conta">Sou cliente</a>
+      </div>
+    </div>
+    <div class="gate-art" aria-hidden="true">
+      <img src="/img/hero.jpg" alt="" />
+      <div class="gate-art-shade"></div>
+      <div class="gate-art-copy">
+        <span class="eyebrow light"><span class="dot"></span> Estúdio em movimento</span>
+        <p class="gate-quote">Sua agenda, suas clientes e o caixa do estúdio, tudo em um só lugar — sem depender de conversa solta no WhatsApp.</p>
+        <div class="gate-chips">
+          <span class="gate-chip">30% de sinal via Pix</span>
+          <span class="gate-chip">Lembretes prontos</span>
+          <span class="gate-chip">Retornos automáticos</span>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Painel -->
+  <div id="app" class="adm-shell" hidden>
+    <aside class="adm-side" id="admSide">
+      <a class="adm-brand" href="#/dashboard">
+        <span class="brand-word">Lumière</span>
+        <span class="adm-brand-tag">Painel</span>
+      </a>
+
+      <nav class="adm-nav" aria-label="Seções do painel">
+        <a href="#/dashboard" data-view="dashboard"><span class="nav-ico"></span><span>Visão geral</span></a>
+        <a href="#/agenda" data-view="agenda"><span class="nav-ico"></span><span>Agenda</span></a>
+        <a href="#/clientes" data-view="clientes"><span class="nav-ico"></span><span>Clientes</span></a>
+        <a href="#/servicos" data-view="servicos"><span class="nav-ico"></span><span>Serviços</span></a>
+        <a href="#/portfolio" data-view="portfolio"><span class="nav-ico"></span><span>Portfólio</span></a>
+        <a href="#/financeiro" data-view="financeiro"><span class="nav-ico"></span><span>Financeiro</span></a>
+        <a href="#/retornos" data-view="retornos"><span class="nav-ico"></span><span>Retornos &amp; lembretes</span></a>
+      </nav>
+
+      <div class="adm-side-foot">
+        <a class="adm-share" href="/agendar" target="_blank" rel="noopener">
+          <span class="nav-ico"></span>
+          <span class="adm-share-text"><strong>Página de agendamento</strong><small>Compartilhe com as clientes</small></span>
+        </a>
+        <div class="adm-user">
+          <span class="adm-avatar" id="sideAvatar">SL</span>
+          <div class="adm-user-text">
+            <strong id="sideName">Studio Lumière</strong>
+            <small id="sideEmail">studio@lumiere.com.br</small>
+          </div>
+          <button class="adm-user-out" id="logoutBtn" type="button" title="Sair" aria-label="Sair"></button>
+        </div>
+      </div>
+    </aside>
+    <div class="adm-side-scrim" id="sideScrim" hidden></div>
+
+    <div class="adm-main">
+      <header class="adm-top">
+        <button class="adm-menu" id="sideToggle" type="button" aria-label="Abrir menu"></button>
+        <div class="adm-title">
+          <span class="adm-eyebrow" id="viewEyebrow">Painel · Lumière</span>
+          <h1 id="viewTitle">Visão geral</h1>
+        </div>
+        <div class="adm-top-actions">
+          <span class="live-pill" id="livePill" title="Conexão em tempo real"><span class="live-dot"></span><span id="liveText">Ao vivo</span></span>
+          <button class="adm-icon-btn" id="notifBtn" type="button" aria-label="Notificações" title="Notificações">
+            <span class="notif-glyph" id="notifGlyph"></span>
+            <span class="notif-count" id="notifCount" hidden>0</span>
+          </button>
+          <button class="btn btn-primary btn-sm adm-new" id="newApptBtn" type="button">Novo agendamento</button>
+        </div>
+      </header>
+
+      <main id="view" class="adm-view" aria-live="polite"></main>
+
+      <footer class="adm-foot">
+        <span>Studio Lumière · painel interno</span>
+        <span class="foot-dot"></span>
+        <a href="/" target="_blank" rel="noopener">Ver site</a>
+        <span class="foot-dot"></span>
+        <a href="/agendar" target="_blank" rel="noopener">Página de agendamento</a>
+      </footer>
+    </div>
+  </div>
+
+  <aside class="notif-panel" id="notifPanel" aria-label="Notificações em tempo real">
+    <header class="notif-head">
+      <div>
+        <strong>Notificações</strong>
+        <small id="notifSub">Movimentações do estúdio em tempo real</small>
+      </div>
+      <div class="notif-head-actions">
+        <button class="btn btn-quiet btn-xs" id="notifReadAll" type="button">Marcar lidas</button>
+        <button class="icon-btn adm-icon-sm" id="notifClose" type="button" aria-label="Fechar">×</button>
+      </div>
+    </header>
+    <div class="notif-body" id="notifBody"></div>
+  </aside>
+
+  <div id="modalHost"></div>
+
+  <script type="module" src="/js/admin.js"></script>
+</body>
+</html>
