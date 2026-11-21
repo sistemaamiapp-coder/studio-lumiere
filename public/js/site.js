@@ -111,6 +111,29 @@ function setWhatsAppLinks(business) {
   });
 }
 
+function applyContact(business) {
+  const instagram = (business.instagram || '').replace(/^@/, '');
+  $$('[data-social="instagram"]').forEach(link => {
+    link.href = instagram ? `https://instagram.com/${instagram}` : '#';
+    link.setAttribute('aria-label', instagram ? `Instagram @${instagram}` : 'Instagram');
+    link.hidden = !instagram;
+  });
+
+  const email = $('#footerEmail');
+  if (email) {
+    if (business.email) {
+      email.href = `mailto:${business.email}`;
+      email.textContent = business.email;
+      email.hidden = false;
+    } else {
+      email.hidden = true;
+    }
+  }
+
+  const address = $('#footerAddress');
+  if (address) address.textContent = business.address || '';
+}
+
 function handleHeroImage() {
   const image = $('#heroPhoto');
   if (!image) return;
@@ -128,13 +151,14 @@ async function init() {
   try {
     const data = await api('/api/site');
     setWhatsAppLinks(data.business);
+    applyContact(data.business);
     renderServices(data.services);
     renderPortfolio(data.portfolio);
     document.title = `${data.business.name} — ${data.business.tagline}`;
   } catch (error) {
     $('#serviceGroups').innerHTML = `<p class="muted">Não foi possível carregar os serviços agora. <a class="link-arrow" href="/agendar">Tente pelo agendamento</a>.</p>`;
     $('#portfolioGrid').innerHTML = '';
-    setWhatsAppLinks({ name: 'Studio Lumière', whatsapp: '5527999990000' });
+    setWhatsAppLinks({ name: 'Studio Paula Souza', whatsapp: '5527999990000' });
     toast('Não foi possível carregar o site agora. Tente novamente em instantes.', { type: 'error' });
   }
 }

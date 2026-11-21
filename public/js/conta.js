@@ -246,7 +246,7 @@ function renderStudio() {
   ];
   $('#studioHours').innerHTML = rows.map(([label, value]) => `<span><b>${label}</b>${esc(value)}</span>`).join('');
   $$('a[data-wa]').forEach(node => {
-    node.href = waStudio('Olá! Sou cliente do Studio Lumière e preciso de ajuda com meu agendamento.');
+    node.href = waStudio('Olá! Sou cliente do Studio Paula Souza e preciso de ajuda com meu agendamento.');
     node.target = '_blank';
     node.rel = 'noopener';
   });

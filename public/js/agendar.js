@@ -78,7 +78,7 @@ function updateHeader() {
   }
   $$('a[data-wa]').forEach(node => {
     if (!state.site) return;
-    node.href = waLink(state.site.business.whatsapp, 'Olá! Vim pelo site do Studio Lumière e tenho uma dúvida sobre o agendamento.');
+    node.href = waLink(state.site.business.whatsapp, 'Olá! Vim pelo site do Studio Paula Souza e tenho uma dúvida sobre o agendamento.');
     node.target = '_blank';
     node.rel = 'noopener';
   });
@@ -531,7 +531,7 @@ function renderIdentify() {
 
   const forgot = $('#forgotLink');
   if (forgot) {
-    forgot.href = waLink(state.site.business.whatsapp, 'Olá! Esqueci minha senha do site do Studio Lumière e preciso de ajuda para acessar minha conta.');
+    forgot.href = waLink(state.site.business.whatsapp, 'Olá! Esqueci minha senha do site do Studio Paula Souza e preciso de ajuda para acessar minha conta.');
   }
 
   $('#registerForm')?.addEventListener('submit', async event => {
@@ -549,7 +549,7 @@ function renderIdentify() {
       });
       state.user = result.user;
       updateHeader();
-      toast(`Conta criada, ${result.user.name.split(' ')[0]}! Agora confirme seu horário.`, { type: 'success', title: 'Bem-vinda ao Lumière' });
+      toast(`Conta criada, ${result.user.name.split(' ')[0]}! Agora confirme seu horário.`, { type: 'success', title: 'Bem-vinda ao Paula Souza' });
       goTo(4);
     } catch (error) {
       errorBox.textContent = error.message;
@@ -680,7 +680,7 @@ function renderSuccess() {
   const firstName = String(state.user?.name || '').split(' ')[0];
 
   const waMessage = [
-    `Olá, Studio Lumière! Sou ${state.user?.name || ''}.`,
+    `Olá, Studio Paula Souza! Sou ${state.user?.name || ''}.`,
     `Acabei de agendar ${service.name} para ${dateLong(appointment.date)} às ${appointment.time} (${ticketNumber}).`,
     `Sinal de ${money(depositAmount)} via Pix. Pode confirmar meu horário?`
   ].join(' ');

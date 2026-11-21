@@ -1,5 +1,5 @@
 /* ============================================================
-   Studio Lumière — painel interno
+   Studio Paula Souza — painel interno
    Complementa style.css (tokens, botões, campos, modais, toasts).
    ============================================================ */
 [hidden] { display: none !important; }
@@ -579,3 +579,16 @@
   .quick-grid { grid-template-columns: 1fr; }
   .admin-body .toast-stack { top: 10px; }
 }
+
+/* ---------- contato e redes ---------- */
+.contact-preview { display: grid; gap: 8px; }
+.contact-line {
+  display: flex; align-items: center; gap: 9px;
+  padding: 9px 11px; border-radius: 12px;
+  border: 1px solid var(--line); background: #fff;
+  color: var(--ink, var(--plum)); text-decoration: none; font-size: 12.5px;
+}
+.contact-line > .icon, .contact-line > .wa-icon { color: var(--gold); flex: none; }
+.contact-line span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+a.contact-line:hover { border-color: var(--gold); }
+.contact-line.muted { color: var(--muted); background: transparent; }

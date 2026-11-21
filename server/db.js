@@ -91,7 +91,23 @@ CREATE TABLE IF NOT EXISTS portfolio (
   sort INTEGER DEFAULT 0,
   created_at TEXT NOT NULL
 );
+
+CREATE TABLE IF NOT EXISTS settings (
+  key TEXT PRIMARY KEY,
+  value TEXT NOT NULL
+);
 `);
+
+function ensureSettings() {
+  const defaults = {
+    whatsapp: BUSINESS.whatsapp,
+    email: BUSINESS.email,
+    instagram: BUSINESS.instagram,
+    address: BUSINESS.address
+  };
+  const insert = db.prepare('INSERT OR IGNORE INTO settings (key, value) VALUES (?, ?)');
+  for (const [key, value] of Object.entries(defaults)) insert.run(key, value);
+}
 
 function seed() {
   const count = db.prepare('SELECT COUNT(*) AS n FROM users').get().n;
@@ -263,3 +279,4 @@ function seed() {
 }
 
 seed();
+ensureSettings();

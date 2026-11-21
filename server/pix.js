@@ -41,7 +41,7 @@ export function pixPayload({ amount, txid }) {
   payload += emv('58', 'BR');
   payload += emv('59', deaccent(BUSINESS.pixName).slice(0, 25));
   payload += emv('60', deaccent(BUSINESS.pixCity).slice(0, 15));
-  const cleanTxid = String(txid || 'LUMIERE').replace(/[^A-Za-z0-9]/g, '').slice(0, 25) || 'LUMIERE';
+  const cleanTxid = String(txid || 'STUDIOPAULA').replace(/[^A-Za-z0-9]/g, '').slice(0, 25) || 'STUDIOPAULA';
   payload += emv('62', emv('05', cleanTxid));
   payload += '6304';
   return payload + crc16(payload);

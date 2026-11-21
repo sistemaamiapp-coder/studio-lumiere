@@ -1,4 +1,4 @@
-# Studio Lumière — agenda, clientes e financeiro
+# Studio Paula Souza — agenda, clientes e financeiro
 
 Sistema de gestão para estúdio de cílios e unhas: agendamento online 24h, agenda do dia,
 ficha das clientes, controle de manutenção, sinal via Pix e financeiro — tudo em português,
@@ -25,7 +25,7 @@ Acessos iniciais:
 
 | Perfil  | E-mail                  | Senha                                              |
 | ------- | ----------------------- | -------------------------------------------------- |
-| Estúdio | `studio@lumiere.com.br` | definida em `LUMIERE_ADMIN_PASSWORD` ou gerada no primeiro start |
+| Estúdio | `studio@paulasouza.com.br` | definida em `LUMIERE_ADMIN_PASSWORD` ou gerada no primeiro start |
 | Cliente | `cliente@demo.com`      | `demo1234`                                         |
 
 A senha do painel não fica no código: no primeiro start o sistema usa a variável

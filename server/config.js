@@ -1,15 +1,15 @@
 // Dados do estúdio — edite este arquivo para personalizar a marca,
 // o WhatsApp, a chave Pix e o percentual do sinal.
 export const BUSINESS = {
-  name: 'Studio Lumière',
-  shortName: 'Lumière',
+  name: 'Studio Paula Souza',
+  shortName: 'Paula Souza',
   tagline: 'Lash & Nails Studio',
   eyebrow: 'Lash · Gel · Manicure & Pedicure',
   whatsapp: '5527999990000',            // somente dígitos, com DDI 55
-  whatsappDisplay: '(27) 99999-0000',
-  instagram: '@studiolumiere',
-  pixKey: 'contato@studiolumiere.com.br', // chave Pix (e-mail, telefone, CPF/CNPJ ou aleatória)
-  pixName: 'STUDIO LUMIERE',
+  instagram: 'studiodapaulasouza',      // sem @
+  email: 'contato@paulasouza.com.br',
+  pixKey: 'contato@paulasouza.com.br', // chave Pix (e-mail, telefone, CPF/CNPJ ou aleatória)
+  pixName: 'STUDIO PAULA SOUZA',
   pixCity: 'VILA VELHA',
   depositPercent: 30,
   cancelHours: 6,
@@ -31,8 +31,8 @@ export const BUSINESS = {
 // A senha vem de LUMIERE_ADMIN_PASSWORD; sem a variável, uma senha aleatória
 // é gerada e mostrada uma única vez no console.
 export const ADMIN = {
-  name: 'Studio Lumière',
-  email: 'studio@lumiere.com.br',
+  name: 'Studio Paula Souza',
+  email: 'studio@paulasouza.com.br',
   phone: '27999990000'
 };
 

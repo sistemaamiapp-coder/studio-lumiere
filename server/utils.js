@@ -72,6 +72,13 @@ export function normalizePhone(input) {
   return value;
 }
 
+export function phoneDisplay(input) {
+  const value = normalizePhone(input);
+  if (value.length === 11) return `(${value.slice(0, 2)}) ${value.slice(2, 7)}-${value.slice(7)}`;
+  if (value.length === 10) return `(${value.slice(0, 2)}) ${value.slice(2, 6)}-${value.slice(6)}`;
+  return String(input || '');
+}
+
 export function normalizeTime(input) {
   const match = String(input || '').match(/^(\d{1,2}):(\d{2})$/);
   if (!match) return null;

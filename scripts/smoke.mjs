@@ -11,7 +11,7 @@ import { ADMIN, DEMO_CLIENT } from '../server/config.js';
 const PORT = Number(process.env.SMOKE_PORT) || 3179;
 const BASE = `http://127.0.0.1:${PORT}`;
 const ADMIN_PASSWORD = 'smoke-admin-2026';
-const dataDir = fs.mkdtempSync(path.join(os.tmpdir(), 'lumiere-smoke-'));
+const dataDir = fs.mkdtempSync(path.join(os.tmpdir(), 'paula-souza-smoke-'));
 
 let server;
 let output = '';
@@ -76,7 +76,7 @@ async function main() {
 
   const home = await call('/');
   assert.equal(home.status, 200);
-  assert.match(home.data, /Lumi[eè]re/);
+  assert.match(home.data, /Paula Souza/);
 
   for (const page of ['/admin.html', '/agendar.html', '/entrar.html']) {
     const res = await call(page);
@@ -93,6 +93,37 @@ async function main() {
     const res = await call(path, { cookie: adminCookie });
     assert.equal(res.status, 200, `${path} falhou: ${JSON.stringify(res.data)}`);
   }
+
+  const settings = await call('/api/admin/settings', { cookie: adminCookie });
+  assert.equal(settings.status, 200);
+  assert.match(settings.data.settings.whatsappDisplay, /^\(\d{2}\) /);
+
+  const saved = await call('/api/admin/settings', {
+    method: 'PATCH',
+    cookie: adminCookie,
+    body: {
+      whatsapp: '(11) 98888-7777',
+      email: 'contato@paulasouza.com.br',
+      instagram: 'https://instagram.com/studio.paula.teste',
+      address: 'Rua das Flores, 123 · Vila Velha, ES'
+    }
+  });
+  assert.equal(saved.status, 200, `salvar contato falhou: ${JSON.stringify(saved.data)}`);
+  assert.equal(saved.data.settings.whatsapp, '5511988887777');
+  assert.equal(saved.data.settings.instagram, 'studio.paula.teste');
+
+  const siteAfter = await call('/api/site');
+  assert.equal(siteAfter.data.business.whatsapp, '5511988887777');
+  assert.equal(siteAfter.data.business.email, 'contato@paulasouza.com.br');
+  assert.equal(siteAfter.data.business.instagram, 'studio.paula.teste');
+  assert.equal(siteAfter.data.business.address, 'Rua das Flores, 123 · Vila Velha, ES');
+
+  const badPhone = await call('/api/admin/settings', { method: 'PATCH', cookie: adminCookie, body: { whatsapp: '123' } });
+  assert.equal(badPhone.status, 400, 'WhatsApp inválido deveria ser recusado');
+  const badEmail = await call('/api/admin/settings', { method: 'PATCH', cookie: adminCookie, body: { email: 'sem-arroba' } });
+  assert.equal(badEmail.status, 400, 'E-mail inválido deveria ser recusado');
+  const clientSettings = await call('/api/admin/settings');
+  assert.equal(clientSettings.status, 401, 'contato do site não pode ser lido sem login de admin');
 
   const clientCookie = await login(DEMO_CLIENT.email, DEMO_CLIENT.password);
   const mine = await call('/api/my/appointments', { cookie: clientCookie });

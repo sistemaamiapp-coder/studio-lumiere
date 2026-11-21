@@ -35,12 +35,12 @@ async function init() {
   try {
     site = await api('/api/site');
     $$('a[data-wa]').forEach(node => {
-      node.href = waLink(site.business.whatsapp, 'Olá! Preciso de ajuda para acessar minha conta no site do Studio Lumière.');
+      node.href = waLink(site.business.whatsapp, 'Olá! Preciso de ajuda para acessar minha conta no site do Studio Paula Souza.');
       node.target = '_blank';
       node.rel = 'noopener';
     });
     const forgot = $('#forgotLink');
-    if (forgot) forgot.href = waLink(site.business.whatsapp, 'Olá! Esqueci minha senha do site do Studio Lumière. Pode me ajudar a redefinir?');
+    if (forgot) forgot.href = waLink(site.business.whatsapp, 'Olá! Esqueci minha senha do site do Studio Paula Souza. Pode me ajudar a redefinir?');
   } catch { /* site info é opcional */ }
 
   const params = new URLSearchParams(location.search);
@@ -91,7 +91,7 @@ async function init() {
           password: data.password, birthdate: data.birthdate || null
         }
       });
-      toast(`Conta criada, ${user.name.split(' ')[0]}!`, { type: 'success', title: 'Bem-vinda ao Lumière' });
+      toast(`Conta criada, ${user.name.split(' ')[0]}!`, { type: 'success', title: 'Bem-vinda ao Paula Souza' });
       location.assign(destinationFor(user));
     } catch (error) {
       errorBox.textContent = error.message;

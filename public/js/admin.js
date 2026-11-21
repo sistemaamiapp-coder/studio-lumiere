@@ -166,14 +166,14 @@ function apptMessage(appointment) {
     return `Olá, ${first}! Recebi seu pedido de ${appointment.service_name} para ${when}. Para garantir o horário, o sinal de ${money(appointment.deposit_amount)} pode ser feito pelo Pix. Posso confirmar sua presença?`;
   }
   if (appointment.status === 'confirmado') {
-    return `Olá, ${first}! Seu horário de ${appointment.service_name} está confirmado para ${when}, no Studio Lumière. Se precisar remarcar, me avise por aqui com antecedência.`;
+    return `Olá, ${first}! Seu horário de ${appointment.service_name} está confirmado para ${when}, no Studio Paula Souza. Se precisar remarcar, me avise por aqui com antecedência.`;
   }
   return `Olá, ${first}! Passando para falar do seu horário de ${appointment.service_name}, ${when}.`;
 }
 
 function reminderMessage(appointment) {
   const first = firstName(appointment.client_name);
-  return `Olá, ${first}! Passando para lembrar do seu horário amanhã: ${appointment.service_name} em ${dateLong(appointment.date)} às ${appointment.time}, no Studio Lumière. Se precisar remarcar, me avise por aqui.`;
+  return `Olá, ${first}! Passando para lembrar do seu horário amanhã: ${appointment.service_name} em ${dateLong(appointment.date)} às ${appointment.time}, no Studio Paula Souza. Se precisar remarcar, me avise por aqui.`;
 }
 
 function todayMessage(appointment) {
@@ -183,7 +183,7 @@ function todayMessage(appointment) {
 
 function depositMessage(appointment) {
   const first = firstName(appointment.client_name);
-  const key = state.site?.business?.pixKey || 'contato@studiolumiere.com.br';
+  const key = state.site?.business?.pixKey || 'contato@paulasouza.com.br';
   return `Olá, ${first}! Para garantir seu horário de ${appointment.service_name} em ${dateLong(appointment.date)} às ${appointment.time}, o sinal é de ${money(appointment.deposit_amount)} via Pix. Chave: ${key}. Quando enviar, me manda o comprovante por aqui.`;
 }
 
@@ -194,11 +194,11 @@ function maintenanceMessage(item) {
 
 function birthdayMessage(person) {
   const first = firstName(person.name);
-  return `Olá, ${first}! Passando para te desejar um feliz aniversário! Que seu novo ano seja lindo. Com carinho, Studio Lumière.`;
+  return `Olá, ${first}! Passando para te desejar um feliz aniversário! Que seu novo ano seja lindo. Com carinho, Studio Paula Souza.`;
 }
 
 function accessMessage(name, email, password) {
-  return `Olá, ${firstName(name)}! Seu acesso ao Studio Lumière está pronto. E-mail: ${email} · Senha: ${password}. Por aqui você agenda, acompanha seus horários e envia o sinal pelo Pix.`;
+  return `Olá, ${firstName(name)}! Seu acesso ao Studio Paula Souza está pronto. E-mail: ${email} · Senha: ${password}. Por aqui você agenda, acompanha seus horários e envia o sinal pelo Pix.`;
 }
 
 /* ============================================================
@@ -264,13 +264,14 @@ function viewError(root, error) {
    roteador
    ============================================================ */
 const VIEWS = {
-  dashboard: { eyebrow: 'Painel · Lumière', title: 'Visão geral', render: viewDashboard },
+  dashboard: { eyebrow: 'Painel · Paula Souza', title: 'Visão geral', render: viewDashboard },
   agenda: { eyebrow: 'Agenda do estúdio', title: 'Agenda', render: viewAgenda },
-  clientes: { eyebrow: 'Clientes · Lumière', title: 'Clientes', render: viewClients },
+  clientes: { eyebrow: 'Clientes · Paula Souza', title: 'Clientes', render: viewClients },
   servicos: { eyebrow: 'Catálogo do estúdio', title: 'Serviços', render: viewServices },
   portfolio: { eyebrow: 'Vitrine do site', title: 'Portfólio', render: viewPortfolio },
   financeiro: { eyebrow: 'Caixa do estúdio', title: 'Financeiro', render: viewFinance },
-  retornos: { eyebrow: 'Relacionamento', title: 'Retornos & lembretes', render: viewReminders }
+  retornos: { eyebrow: 'Relacionamento', title: 'Retornos & lembretes', render: viewReminders },
+  contato: { eyebrow: 'Site · Contato', title: 'Contato & redes', render: viewContact }
 };
 
 function route() {
@@ -292,7 +293,7 @@ function applyChrome() {
   const detail = state.view === 'clientes' && state.param;
   $('#viewEyebrow').textContent = meta.eyebrow;
   $('#viewTitle').textContent = detail ? 'Ficha da cliente' : meta.title;
-  document.title = `${detail ? 'Ficha da cliente' : meta.title} · Painel Lumière`;
+  document.title = `${detail ? 'Ficha da cliente' : meta.title} · Painel Paula Souza`;
   $$('.adm-nav a').forEach(link => {
     link.classList.toggle('active', link.dataset.view === state.view);
   });
@@ -1073,7 +1074,7 @@ async function viewReminders(root, token) {
   await loadServices().catch(() => []);
   if (token !== state.renderToken) return;
   const biz = site?.business || {};
-  const pixKey = biz.pixKey || 'contato@studiolumiere.com.br';
+  const pixKey = biz.pixKey || 'contato@paulasouza.com.br';
   const services = state.services.filter(service => service.active);
 
   const reminderRow = (iconName, tone, title, subtitle, phone, message) => `<div class="rem-row">
@@ -1146,6 +1147,71 @@ async function viewReminders(root, token) {
         <p class="inline-note">Dica: cole o link na bio do Instagram e nas respostas automáticas do WhatsApp.</p>
       </section>
     </div>`;
+}
+
+/* ============================================================
+   contato e redes
+   ============================================================ */
+async function viewContact(root, token) {
+  const { settings } = await api('/api/admin/settings');
+  if (token !== state.renderToken) return;
+
+  const instagramLabel = settings.instagram ? `@${settings.instagram}` : '';
+  root.innerHTML = `
+    <div class="adm-grid-2">
+      <section class="adm-card">
+        ${cardHead('Contato e redes do site', 'Aparecem no rodapé, no agendamento e nas mensagens de WhatsApp')}
+        <form class="adm-form" id="contactForm" novalidate>
+          <div class="form-grid-2">
+            <div class="field"><label for="ctWhats">WhatsApp com DDD</label><input class="input" id="ctWhats" value="${esc(settings.whatsappDisplay)}" inputmode="tel" required /></div>
+            <div class="field"><label for="ctEmail">E-mail de contato</label><input class="input" id="ctEmail" type="email" value="${esc(settings.email)}" placeholder="contato@seuestudio.com.br" /></div>
+          </div>
+          <div class="form-grid-2">
+            <div class="field"><label for="ctInsta">Instagram</label><input class="input" id="ctInsta" value="${esc(instagramLabel)}" placeholder="@seuestudio" /></div>
+            <div class="field"><label for="ctAddress">Endereço exibido</label><input class="input" id="ctAddress" maxlength="160" value="${esc(settings.address)}" placeholder="Bairro, cidade ou frase de atendimento" /></div>
+          </div>
+          <p class="form-error" id="ctError"></p>
+          <div style="display:flex;justify-content:flex-end"><button class="btn btn-primary btn-sm" type="submit" id="ctSave">Salvar contato e redes</button></div>
+        </form>
+      </section>
+      <section class="adm-card tight">
+        ${cardHead('Prévia no site', 'Como os links aparecem para as clientes')}
+        <div class="contact-preview">
+          <a class="contact-line" href="${esc(waLink(settings.whatsapp, 'Olá! Vim pelo site.'))}" target="_blank" rel="noopener">${waIcon(15)}<span>${esc(settings.whatsappDisplay)}</span></a>
+          ${settings.email ? `<a class="contact-line" href="mailto:${esc(settings.email)}">${icon('send', 15)}<span>${esc(settings.email)}</span></a>` : `<div class="contact-line muted">${icon('send', 15)}<span>Sem e-mail cadastrado</span></div>`}
+          ${settings.instagram ? `<a class="contact-line" href="https://instagram.com/${esc(settings.instagram)}" target="_blank" rel="noopener">${icon('instagram', 15)}<span>${esc(instagramLabel)}</span></a>` : `<div class="contact-line muted">${icon('instagram', 15)}<span>Sem Instagram cadastrado</span></div>`}
+          <div class="contact-line">${icon('pin', 15)}<span>${esc(settings.address || 'Sem endereço cadastrado')}</span></div>
+        </div>
+        <p class="inline-note">O WhatsApp também alimenta o botão flutuante e os lembretes prontos do painel.</p>
+      </section>
+    </div>`;
+
+  $('#contactForm', root).addEventListener('submit', async event => {
+    event.preventDefault();
+    const errorEl = $('#ctError', root);
+    errorEl.textContent = '';
+    const button = $('#ctSave', root);
+    setButtonBusy(button, true, 'Salvando...');
+    try {
+      await api('/api/admin/settings', {
+        method: 'PATCH',
+        body: {
+          whatsapp: $('#ctWhats', root).value.trim(),
+          email: $('#ctEmail', root).value.trim(),
+          instagram: $('#ctInsta', root).value.trim(),
+          address: $('#ctAddress', root).value.trim()
+        }
+      });
+      sitePromise = null;
+      await loadSite().catch(() => {});
+      toast('Contato e redes atualizados.', { type: 'success', title: 'Site atualizado' });
+      renderView();
+    } catch (error) {
+      if (error.status === 401) { showGate('Sua sessão expirou. Entre novamente.'); return; }
+      errorEl.textContent = error.message;
+      setButtonBusy(button, false);
+    }
+  });
 }
 
 /* ============================================================
@@ -1799,9 +1865,9 @@ function closeSidebar() {
 function fillSidebar() {
   const user = state.user;
   if (!user) return;
-  $('#sideName').textContent = user.name || 'Studio Lumière';
+  $('#sideName').textContent = user.name || 'Studio Paula Souza';
   $('#sideEmail').textContent = user.email || '';
-  $('#sideAvatar').textContent = initials(user.name || 'Studio Lumière');
+  $('#sideAvatar').textContent = initials(user.name || 'Studio Paula Souza');
 }
 
 /* ============================================================
@@ -1849,7 +1915,7 @@ async function init() {
   bindShell();
   bindGate();
   $$('.adm-nav a').forEach(link => {
-    const map = { dashboard: 'dashboard', agenda: 'calendar', clientes: 'users', servicos: 'sparkles', portfolio: 'image', financeiro: 'wallet', retornos: 'repeat' };
+    const map = { dashboard: 'dashboard', agenda: 'calendar', clientes: 'users', servicos: 'sparkles', portfolio: 'image', financeiro: 'wallet', retornos: 'repeat', contato: 'instagram' };
     link.querySelector('.nav-ico').innerHTML = icon(map[link.dataset.view] || 'dashboard', 15);
   });
   $('.adm-share .nav-ico').innerHTML = icon('external', 15);

@@ -1,9 +1,9 @@
 {
-  "name": "studio-lumiere",
+  "name": "studio-paula-souza",
   "version": "1.0.0",
   "private": true,
   "type": "module",
-  "description": "Studio Lumière — agenda, clientes e financeiro para lash & nails",
+  "description": "Studio Paula Souza — agenda, clientes e financeiro para lash & nails",
   "scripts": {
     "start": "node server/index.js",
     "test": "node scripts/smoke.mjs"

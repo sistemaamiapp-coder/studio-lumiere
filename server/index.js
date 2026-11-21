@@ -17,7 +17,7 @@ import { slotsFor, hasConflict, fitsHours, workingHours } from './availability.j
 import { pixPayload, pixQrDataUrl } from './pix.js';
 import {
   toISO, addDays, diffDays, toMinutes, nowMinutes, digits, clean, isValidEmail,
-  round2, formatDateBR, normalizePhone, normalizeTime, isISODate, money
+  round2, formatDateBR, normalizePhone, normalizeTime, isISODate, money, phoneDisplay
 } from './utils.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
@@ -67,6 +67,34 @@ const APPT_SELECT = `
   JOIN users u ON u.id = a.client_id
   JOIN services s ON s.id = a.service_id
 `;
+
+/* ---------------- Contato e redes do site ---------------- */
+function getSettings() {
+  const stored = Object.fromEntries(db.prepare('SELECT key, value FROM settings').all().map(row => [row.key, row.value]));
+  const whatsapp = stored.whatsapp || BUSINESS.whatsapp;
+  return {
+    whatsapp,
+    whatsappDisplay: phoneDisplay(whatsapp),
+    email: stored.email ?? BUSINESS.email,
+    instagram: stored.instagram ?? BUSINESS.instagram,
+    address: stored.address ?? BUSINESS.address
+  };
+}
+
+function saveSettings(values) {
+  const upsert = db.prepare(`
+    INSERT INTO settings (key, value) VALUES (?, ?)
+    ON CONFLICT(key) DO UPDATE SET value = excluded.value
+  `);
+  for (const [key, value] of Object.entries(values)) upsert.run(key, value);
+}
+
+function instagramHandle(input) {
+  let value = clean(input, 120).trim();
+  if (!value) return '';
+  value = value.replace(/^https?:\/\/(www\.)?instagram\.com\//i, '').replace(/^@/, '');
+  return value.split(/[/?#]/)[0].replace(/[^a-zA-Z0-9._]/g, '');
+}
 
 function getAppointment(id) {
   return db.prepare(`${APPT_SELECT} WHERE a.id = ?`).get(Number(id));
@@ -275,13 +303,14 @@ app.get('/api/site', (req, res) => {
     FROM services WHERE active = 1 ORDER BY sort, id
   `).all();
   const portfolio = db.prepare('SELECT id, title, description, category, image FROM portfolio ORDER BY sort, id DESC').all();
+  const contact = getSettings();
   res.json({
     business: {
       name: BUSINESS.name, shortName: BUSINESS.shortName, tagline: BUSINESS.tagline,
-      eyebrow: BUSINESS.eyebrow, whatsapp: BUSINESS.whatsapp,
-      whatsappDisplay: BUSINESS.whatsappDisplay, instagram: BUSINESS.instagram,
-      depositPercent: BUSINESS.depositPercent, cancelHours: BUSINESS.cancelHours,
-      address: BUSINESS.address, hours: BUSINESS.hours
+      eyebrow: BUSINESS.eyebrow, whatsapp: contact.whatsapp,
+      whatsappDisplay: contact.whatsappDisplay, instagram: contact.instagram,
+      email: contact.email, depositPercent: BUSINESS.depositPercent,
+      cancelHours: BUSINESS.cancelHours, address: contact.address, hours: BUSINESS.hours
     },
     services, portfolio, categories: CATEGORIES
   });
@@ -946,8 +975,39 @@ app.get('/api/admin/reminders', requireAdmin, (req, res) => {
   res.json({
     tomorrowAppointments, todayPending, pendingDeposits,
     birthdays: birthdayList(), maintenance: maintenanceList(),
-    business: { whatsapp: BUSINESS.whatsapp, name: BUSINESS.name }
+    business: { whatsapp: getSettings().whatsapp, name: BUSINESS.name }
   });
+});
+
+/* ---------------- Admin: contato e redes ---------------- */
+app.get('/api/admin/settings', requireAdmin, (_req, res) => {
+  res.json({ settings: getSettings() });
+});
+
+app.patch('/api/admin/settings', requireAdmin, (req, res) => {
+  const body = req.body || {};
+  const values = {};
+
+  if (body.whatsapp !== undefined) {
+    const phone = normalizePhone(body.whatsapp);
+    if (phone.length < 10 || phone.length > 11) fail(400, 'Informe o WhatsApp com DDD.');
+    values.whatsapp = `55${phone}`;
+  }
+  if (body.email !== undefined) {
+    const email = clean(body.email, 160).toLowerCase();
+    if (email && !isValidEmail(email)) fail(400, 'Confira o e-mail de contato.');
+    values.email = email;
+  }
+  if (body.instagram !== undefined) {
+    values.instagram = instagramHandle(body.instagram);
+  }
+  if (body.address !== undefined) {
+    values.address = clean(body.address, 160);
+  }
+
+  if (!Object.keys(values).length) fail(400, 'Nenhuma alteração informada.');
+  saveSettings(values);
+  res.json({ settings: getSettings() });
 });
 
 /* ---------------- Estáticos ---------------- */
