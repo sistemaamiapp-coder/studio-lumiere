@@ -9,15 +9,16 @@ usando o **nome completo + WhatsApp** informados no agendamento.
 
 ## Endereços
 
-| Página                | Endereço                          |
-| --------------------- | --------------------------------- |
-| Site                  | `/`                               |
-| Agendamento           | `/agendar`                        |
-| Minha conta           | `/minha-conta`                    |
-| Painel do estúdio     | `/admin.html`                     |
+No ar em **https://app.studio-paula-souza.workers.dev**
 
-No ambiente publicado o endereço é o do Worker no Cloudflare (veja os logs do GitHub
-Actions em **Publicar**). O teste local usa `http://localhost:3000`.
+| Página                | Endereço                                              |
+| --------------------- | ----------------------------------------------------- |
+| Site                  | https://app.studio-paula-souza.workers.dev/           |
+| Agendamento           | https://app.studio-paula-souza.workers.dev/agendar    |
+| Minha conta           | https://app.studio-paula-souza.workers.dev/minha-conta |
+| Painel do estúdio     | https://app.studio-paula-souza.workers.dev/admin.html |
+
+Localmente o servidor usa `http://localhost:3000`.
 
 ## Rodando localmente
 
@@ -42,7 +43,7 @@ Cada push na `main` dispara **CI** (teste de fumaça) e **Publicar** (deploy no 
 
 O deploy cria os recursos que faltarem e aplica a estrutura do banco:
 
-- Worker `studio-paula-souza` (API + site)
+- Worker `app` (API + site)
 - Banco **D1** `studio-paula-souza`
 - KV `studio-paula-souza-media` (fotos do portfólio)
 - Segredo `LUMIERE_ADMIN_PASSWORD` (senha do painel no primeiro acesso)

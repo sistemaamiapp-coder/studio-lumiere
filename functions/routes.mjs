@@ -209,7 +209,8 @@ function friendlyPassword(length = 8) {
 }
 
 /* ---------------- senhas (PBKDF2 / WebCrypto) ---------------- */
-const PBKDF2_ITERATIONS = 120000;
+// 100.000 é o teto do PBKDF2 no Cloudflare Workers.
+const PBKDF2_ITERATIONS = 100000;
 const textEncoder = new TextEncoder();
 
 function toHex(bytes) {

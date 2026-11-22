@@ -1,4 +1,4 @@
-name = "studio-paula-souza"
+name = "app"
 main = "serverless/worker.mjs"
 compatibility_date = "2026-11-01"
 
@@ -13,8 +13,8 @@ run_worker_first = true
 [[d1_databases]]
 binding = "DB"
 database_name = "studio-paula-souza"
-database_id = "00000000-0000-0000-0000-000000000000"
+database_id = "6daa50d3-5c52-4565-9b6f-f3f0c7cac2d6"
 
 [[kv_namespaces]]
 binding = "MEDIA"
-id = "00000000000000000000000000000000"
+id = "d327d0d767fb4b87beb5ceae6351f84c"

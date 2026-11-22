@@ -24,9 +24,14 @@ function wrangler(args, { input, allowFailure = false } = {}) {
 }
 
 function jsonArray(output) {
-  const start = output.indexOf('[');
-  if (start < 0) return [];
-  return JSON.parse(output.slice(start));
+  const start = Math.min(...['[', '{'].map(ch => {
+    const index = output.indexOf(ch);
+    return index < 0 ? Number.POSITIVE_INFINITY : index;
+  }));
+  if (!Number.isFinite(start)) return [];
+  const parsed = JSON.parse(output.slice(start));
+  const list = Array.isArray(parsed) ? parsed : parsed.result || [];
+  return Array.isArray(list) ? list : [];
 }
 
 function ensureD1() {
@@ -40,11 +45,11 @@ function ensureD1() {
 }
 
 function ensureKv() {
-  const listed = jsonArray(wrangler(['kv', 'namespace', 'list', '--json']).stdout);
-  const found = listed.find(row => row.title === KV_TITLE);
+  const listed = jsonArray(wrangler(['kv', 'namespace', 'list']).stdout);
+  const found = listed.find(row => (row.title || row.name) === KV_TITLE);
   if (found) return found.id;
   const created = wrangler(['kv', 'namespace', 'create', KV_TITLE]).stdout;
-  const id = created.match(/id\s*=\s*"([0-9a-f]{32})"/)?.[1];
+  const id = created.match(/"?id"?\s*[:=]\s*"([0-9a-f]{32})"/)?.[1];
   if (!id) throw new Error(`não foi possível ler o id do KV criado:\n${created}`);
   return id;
 }
@@ -68,7 +73,7 @@ function main() {
   const configPath = path.join(root, 'wrangler.deploy.toml');
   writeFileSync(configPath, generated);
 
-  wrangler(['d1', 'execute', DB_NAME, '--remote', '--file', path.join(root, 'serverless', 'schema.sql'), '--yes']);
+  wrangler(['d1', 'execute', DB_NAME, '--remote', '--file', path.join(root, 'serverless', 'schema.sql'), '--yes', '--config', configPath]);
   console.log('Estrutura do banco aplicada.');
 
   const secrets = {
