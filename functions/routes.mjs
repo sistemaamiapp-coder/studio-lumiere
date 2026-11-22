@@ -3,6 +3,14 @@
 // gerenciado da plataforma (UUID, valores em centavos, sessões por cookie).
 import { verifyUploadedObject } from './storage-validation.mjs';
 
+function envValue(name) {
+  try {
+    if (typeof Deno !== 'undefined' && Deno.env?.get) return String(Deno.env.get(name) || '').trim();
+    if (typeof process !== 'undefined' && process.env) return String(process.env[name] || '').trim();
+  } catch { /* sem ambiente */ }
+  return '';
+}
+
 const BUSINESS = {
   name: 'Studio Paula Souza',
   shortName: 'Paula Souza',
@@ -11,7 +19,7 @@ const BUSINESS = {
   whatsapp: '5527999990000',
   instagram: 'studiodapaulasouza',
   email: 'contato@paulasouza.com.br',
-  pixKey: 'contato@paulasouza.com.br',
+  pixKey: envValue('LUMIERE_PIX_KEY') || 'contato@paulasouza.com.br',
   pixName: 'STUDIO PAULA SOUZA',
   pixCity: 'VILA VELHA',
   depositPercent: 30,
@@ -714,11 +722,7 @@ export function application({ db, storage }) {
 
   async function seedData() {
     const nowIso = new Date().toISOString();
-    const envPassword = String(
-      (typeof Deno !== 'undefined' && Deno.env?.get?.('LUMIERE_ADMIN_PASSWORD'))
-      || (typeof process !== 'undefined' && process.env?.LUMIERE_ADMIN_PASSWORD)
-      || ''
-    ).trim();
+    const envPassword = envValue('LUMIERE_ADMIN_PASSWORD');
     const adminPassword = envPassword || friendlyPassword(12);
     console.log(envPassword
       ? `[seed] Painel criado · login: ${ADMIN.email} · senha definida em LUMIERE_ADMIN_PASSWORD`
