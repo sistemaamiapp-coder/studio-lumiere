@@ -7,13 +7,17 @@ export function esc(value) {
   })[ch]);
 }
 
+// Em produção (Qoder Sites) a API vive na função edge; no servidor local fica na raiz.
+const API_BASE = typeof window !== 'undefined' ? (window.__API_BASE || '') : '';
+
 export async function api(path, options = {}) {
   const opts = { credentials: 'same-origin', ...options };
   if (opts.body && !(opts.body instanceof FormData)) {
     opts.headers = { 'Content-Type': 'application/json', ...(opts.headers || {}) };
     opts.body = JSON.stringify(opts.body);
   }
-  const res = await fetch(path, opts);
+  const url = API_BASE && path.startsWith('/api/') ? `${API_BASE}${path}` : path;
+  const res = await fetch(url, opts);
   let data = {};
   try { data = await res.json(); } catch { data = {}; }
   if (!res.ok) {
@@ -207,8 +211,35 @@ export async function copyText(text) {
   }
 }
 
-let toastContainer = null;
-export function toast(message, options = {}) {
+export function pixQrDataUrl(payload, size = 240) {
+  if (!payload || typeof qrcode !== 'function') return '';
+  try {
+    const qr = qrcode(0, 'M');
+    qr.addData(String(payload));
+    qr.make();
+    const count = qr.getModuleCount();
+    const quiet = 4;
+    const cell = Math.max(2, Math.floor(size / (count + quiet * 2)));
+    const dimension = cell * (count + quiet * 2);
+    const canvas = document.createElement('canvas');
+    canvas.width = dimension;
+    canvas.height = dimension;
+    const ctx = canvas.getContext('2d');
+    ctx.fillStyle = '#ffffff';
+    ctx.fillRect(0, 0, dimension, dimension);
+    ctx.fillStyle = '#000000';
+    for (let row = 0; row < count; row += 1) {
+      for (let col = 0; col < count; col += 1) {
+        if (qr.isDark(row, col)) ctx.fillRect((col + quiet) * cell, (row + quiet) * cell, cell, cell);
+      }
+    }
+    return canvas.toDataURL('image/png');
+  } catch {
+    return '';
+  }
+}
+
+let toastContainer = null;export function toast(message, options = {}) {
   const { type = 'info', title = '', iconName = null } = options;
   if (!toastContainer) {
     toastContainer = document.createElement('div');

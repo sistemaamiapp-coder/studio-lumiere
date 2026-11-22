@@ -1,0 +1,50 @@
+name: Publicar
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+concurrency:
+  group: deploy-cloudflare
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  deploy:
+    name: Cloudflare (Worker + D1 + KV)
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    env:
+      CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+      CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+      LUMIERE_ADMIN_PASSWORD: ${{ secrets.LUMIERE_ADMIN_PASSWORD }}
+      LUMIERE_PIX_KEY: ${{ secrets.LUMIERE_PIX_KEY }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+
+      - name: Instalar dependências
+        run: npm ci
+
+      - name: Teste de fumaça
+        run: npm test
+
+      - name: Publicar no Cloudflare
+        if: env.CLOUDFLARE_API_TOKEN != ''
+        run: node scripts/deploy-cloudflare.mjs
+
+      - name: Verificar site publicado
+        if: env.CLOUDFLARE_API_TOKEN != ''
+        run: node scripts/check-live.mjs
+
+      - name: Publicação desativada
+        if: env.CLOUDFLARE_API_TOKEN == ''
+        run: |
+          echo "::notice title=Publicação desativada::Defina os secrets CLOUDFLARE_API_TOKEN e CLOUDFLARE_ACCOUNT_ID (e LUMIERE_ADMIN_PASSWORD) para publicar automaticamente a cada push."

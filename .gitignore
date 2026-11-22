@@ -9,3 +9,8 @@ cookies.txt
 vibe_images/
 .DS_Store
 Thumbs.db
+dist/
+.wrangler/
+.wrangler-dry-run/
+wrangler.deploy.toml
+.deploy-url

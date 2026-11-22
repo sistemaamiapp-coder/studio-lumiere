@@ -1,24 +1,23 @@
-// Teste de fumaça: sobe o servidor, exercita as rotas principais e desliga.
-// Roda com banco vazio (seed automático), então pode executar a qualquer momento.
+// Teste de fumaça: sobe o servidor local (API = functions/routes.mjs com banco
+// em memória), exercita os fluxos principais e desliga. Com SMOKE_TARGET
+// (ex.: https://app.exemplo.com) testa um ambiente já publicado.
 import assert from 'node:assert/strict';
 import { spawn } from 'node:child_process';
-import fs from 'node:fs';
-import os from 'node:os';
-import path from 'node:path';
 import { setTimeout as sleep } from 'node:timers/promises';
-import { ADMIN, DEMO_CLIENT } from '../server/config.js';
 
+const TARGET = String(process.env.SMOKE_TARGET || '').replace(/\/+$/, '');
 const PORT = Number(process.env.SMOKE_PORT) || 3179;
-const BASE = `http://127.0.0.1:${PORT}`;
-const ADMIN_PASSWORD = 'smoke-admin-2026';
-const dataDir = fs.mkdtempSync(path.join(os.tmpdir(), 'paula-souza-smoke-'));
+const BASE = TARGET || `http://127.0.0.1:${PORT}`;
+const API = TARGET || `${BASE}/functions/v1/app`;
+const ADMIN_EMAIL = 'studio@paulasouza.com.br';
+const ADMIN_PASSWORD = process.env.SMOKE_ADMIN_PASSWORD || 'smoke-admin-2026';
 
 let server;
 let output = '';
 
 function startServer() {
   server = spawn(process.execPath, ['server/index.js'], {
-    env: { ...process.env, PORT: String(PORT), LUMIERE_DATA_DIR: dataDir, LUMIERE_ADMIN_PASSWORD: ADMIN_PASSWORD },
+    env: { ...process.env, PORT: String(PORT), LUMIERE_ADMIN_PASSWORD: ADMIN_PASSWORD },
     stdio: ['ignore', 'pipe', 'pipe']
   });
   server.stdout.on('data', chunk => { output += chunk; });
@@ -31,7 +30,7 @@ function startServer() {
 async function waitForServer() {
   for (let i = 0; i < 80; i += 1) {
     try {
-      const res = await fetch(`${BASE}/api/site`);
+      const res = await fetch(`${API}/api/site`);
       if (res.ok) return;
     } catch { /* ainda subindo */ }
     await sleep(250);
@@ -40,7 +39,7 @@ async function waitForServer() {
 }
 
 async function call(path, { method = 'GET', body, cookie } = {}) {
-  const res = await fetch(BASE + path, {
+  const res = await fetch(API + path, {
     method,
     headers: {
       ...(body ? { 'content-type': 'application/json' } : {}),
@@ -57,11 +56,8 @@ async function call(path, { method = 'GET', body, cookie } = {}) {
   return { status: res.status, data, cookie: setCookie || cookie };
 }
 
-async function login(email, password) {
-  const res = await call('/api/auth/login', { method: 'POST', body: { email, password } });
-  assert.equal(res.status, 200, `login falhou para ${email}: ${JSON.stringify(res.data)}`);
-  assert.ok(res.cookie, 'login não retornou cookie de sessão');
-  return res.cookie;
+async function page(path) {
+  return fetch(BASE + path);
 }
 
 function isoAddDays(days) {
@@ -70,17 +66,30 @@ function isoAddDays(days) {
   return date.toISOString().slice(0, 10);
 }
 
+async function book({ name, phone, serviceId }) {
+  for (let days = 1; days <= 10; days += 1) {
+    const date = isoAddDays(days);
+    const availability = await call(`/api/availability?date=${date}&serviceId=${serviceId}`);
+    if (availability.status !== 200 || availability.data.closed || !availability.data.slots.length) continue;
+    const res = await call('/api/appointments', {
+      method: 'POST',
+      body: { name, phone, serviceId, date, time: availability.data.slots[0], notes: 'Teste automatizado' }
+    });
+    assert.equal(res.status, 201, `agendamento falhou: ${JSON.stringify(res.data)}`);
+    return res.data;
+  }
+  throw new Error('nenhum dia aberto nos próximos 10 dias para agendar');
+}
+
 async function main() {
-  startServer();
-  await waitForServer();
+  if (!TARGET) {
+    startServer();
+    await waitForServer();
+  }
 
-  const home = await call('/');
-  assert.equal(home.status, 200);
-  assert.match(home.data, /Paula Souza/);
-
-  for (const page of ['/admin.html', '/agendar.html', '/entrar.html']) {
-    const res = await call(page);
-    assert.equal(res.status, 200, `${page} não abriu`);
+  for (const path of ['/', '/admin.html', '/agendar.html', '/minha-conta.html']) {
+    const res = await page(path);
+    assert.equal(res.status, 200, `${path} não abriu`);
   }
 
   const site = await call('/api/site');
@@ -88,7 +97,11 @@ async function main() {
   assert.ok(site.data.services.length > 0, 'seed sem serviços');
   assert.ok(site.data.business.depositPercent > 0);
 
-  const adminCookie = await login(ADMIN.email, ADMIN_PASSWORD);
+  const login = await call('/api/auth/login', { method: 'POST', body: { email: ADMIN_EMAIL, password: ADMIN_PASSWORD } });
+  assert.equal(login.status, 200, `login do painel falhou: ${JSON.stringify(login.data)}`);
+  assert.ok(login.cookie, 'login não retornou cookie de sessão');
+  const adminCookie = login.cookie;
+
   for (const path of ['/api/admin/overview', '/api/admin/clients', '/api/admin/services', '/api/admin/finance', '/api/admin/reminders', '/api/admin/maintenance']) {
     const res = await call(path, { cookie: adminCookie });
     assert.equal(res.status, 200, `${path} falhou: ${JSON.stringify(res.data)}`);
@@ -125,36 +138,35 @@ async function main() {
   const clientSettings = await call('/api/admin/settings');
   assert.equal(clientSettings.status, 401, 'contato do site não pode ser lido sem login de admin');
 
-  const clientCookie = await login(DEMO_CLIENT.email, DEMO_CLIENT.password);
-  const mine = await call('/api/my/appointments', { cookie: clientCookie });
-  assert.equal(mine.status, 200);
-
+  const identity = { name: 'Teste Automatizado Silva', phone: '21977776666' };
   const serviceId = site.data.services[0].id;
-  let booking = null;
-  for (let days = 1; days <= 8 && !booking; days += 1) {
-    const date = isoAddDays(days);
-    const availability = await call(`/api/availability?date=${date}&serviceId=${serviceId}`);
-    if (availability.status !== 200 || availability.data.closed || !availability.data.slots.length) continue;
-    const res = await call('/api/appointments', {
-      method: 'POST',
-      cookie: clientCookie,
-      body: { serviceId, date, time: availability.data.slots[0], notes: 'Teste automatizado' }
-    });
-    assert.equal(res.status, 201, `agendamento falhou: ${JSON.stringify(res.data)}`);
-    booking = res.data.appointment;
-  }
-  assert.ok(booking, 'nenhum dia aberto nos próximos 8 dias para agendar');
+  const booking = await book({ ...identity, serviceId });
+  assert.ok(booking.appointment?.id, 'agendamento sem id');
+  assert.ok(String(booking.pix?.payload || '').startsWith('000201'), 'PIX inválido na resposta do agendamento');
 
-  const pix = await call(`/api/deposit/${booking.id}/pix`, { cookie: clientCookie });
+  const wrongName = await call('/api/my/appointments', {
+    method: 'POST',
+    body: { name: 'Outra Pessoa', phone: identity.phone }
+  });
+  assert.equal(wrongName.status, 404, 'nome diferente deveria ser recusado');
+
+  const mine = await call('/api/my/appointments', { method: 'POST', body: identity });
+  assert.equal(mine.status, 200);
+  assert.ok(mine.data.appointments.some(row => row.id === booking.appointment.id), 'agendamento não apareceu para a cliente');
+
+  const pix = await call(`/api/deposit/${booking.appointment.id}/pix`, { method: 'POST', body: identity });
   assert.equal(pix.status, 200);
   assert.ok(String(pix.data.payload).startsWith('000201'), 'payload Pix inválido');
-  assert.ok(pix.data.qr.startsWith('data:image/'));
 
-  const dayAppointments = await call(`/api/admin/appointments?from=${booking.date}&to=${booking.date}`, { cookie: adminCookie });
+  const reported = await call(`/api/my/appointments/${booking.appointment.id}/deposit`, { method: 'POST', body: identity });
+  assert.equal(reported.status, 200);
+  assert.equal(reported.data.appointment.deposit_status, 'informado');
+
+  const dayAppointments = await call(`/api/admin/appointments?from=${booking.appointment.date}&to=${booking.appointment.date}`, { cookie: adminCookie });
   assert.equal(dayAppointments.status, 200);
-  assert.ok(dayAppointments.data.appointments.some(row => row.id === booking.id), 'agendamento não apareceu no painel');
+  assert.ok(dayAppointments.data.appointments.some(row => row.id === booking.appointment.id), 'agendamento não apareceu no painel');
 
-  const confirmed = await call(`/api/admin/appointments/${booking.id}`, {
+  const confirmed = await call(`/api/admin/appointments/${booking.appointment.id}`, {
     method: 'PATCH', cookie: adminCookie, body: { status: 'confirmado' }
   });
   assert.equal(confirmed.status, 200, `confirmação falhou: ${JSON.stringify(confirmed.data)}`);
@@ -163,7 +175,10 @@ async function main() {
   const unauthorized = await call('/api/admin/overview');
   assert.equal(unauthorized.status, 401, 'rota de admin acessível sem login');
 
-  console.log('OK — roteiro completo passou (site, login, agenda, Pix, painel).');
+  const registerGone = await call('/api/auth/register', { method: 'POST', body: {} });
+  assert.equal(registerGone.status, 404, 'cadastro de cliente com senha não deveria existir');
+
+  console.log('OK — roteiro completo passou (site, agenda sem login, Pix, painel).');
 }
 
 main()
@@ -178,5 +193,4 @@ main()
       server.kill();
       await closed;
     }
-    try { fs.rmSync(dataDir, { recursive: true, force: true }); } catch { /* arquivo preso no Windows */ }
   });

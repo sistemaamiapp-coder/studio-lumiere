@@ -39,7 +39,6 @@ const state = {
   financeFrom: '',
   financeTo: '',
   notifs: [],
-  ws: null,
   pendingRefresh: false
 };
 
@@ -48,8 +47,10 @@ let modalEl = null;
 let refreshTimer = null;
 let lastFocusBeforeModal = null;
 let selfActionUntil = 0;
+let notifTimer = null;
+let notifSince = Date.now();
 
-// A própria ação do estúdio já mostra um toast; o eco pelo WebSocket só atualiza a lista.
+// A própria ação do estúdio já mostra um toast; a atualização periódica só completa a lista.
 async function api(path, options = {}) {
   if (options.method && options.method !== 'GET') selfActionUntil = Date.now() + 2500;
   return apiFetch(path, options);
@@ -143,11 +144,7 @@ function notifyError(error, title = 'Não foi possível concluir') {
 }
 
 function showGate(message = '') {
-  if (state.ws) {
-    state.ws.onclose = null;
-    try { state.ws.close(); } catch { /* noop */ }
-    state.ws = null;
-  }
+  stopLive();
   state.user = null;
   $('#boot').hidden = true;
   $('#app').hidden = true;
@@ -197,10 +194,6 @@ function birthdayMessage(person) {
   return `Olá, ${first}! Passando para te desejar um feliz aniversário! Que seu novo ano seja lindo. Com carinho, Studio Paula Souza.`;
 }
 
-function accessMessage(name, email, password) {
-  return `Olá, ${firstName(name)}! Seu acesso ao Studio Paula Souza está pronto. E-mail: ${email} · Senha: ${password}. Por aqui você agenda, acompanha seus horários e envia o sinal pelo Pix.`;
-}
-
 /* ============================================================
    pedaços de interface
    ============================================================ */
@@ -230,7 +223,7 @@ function quickBtn(appointment, quick, iconName, label, extra = '') {
 
 function apptRow(appointment, opts = {}) {
   const { showDate = false } = opts;
-  state.apptIndex.set(Number(appointment.id), appointment);
+  state.apptIndex.set(String(appointment.id), appointment);
   const canceled = appointment.status === 'cancelado' || appointment.status === 'faltou';
   return `<article class="arow ${appointment.status === 'concluido' ? 'done' : ''} ${canceled ? 'canceled' : ''}">
     <div class="arow-time"><strong>${esc(appointment.time)}</strong><small>${showDate ? dateShort(appointment.date) : durationLabel(appointment.duration_min)}</small></div>
@@ -516,7 +509,7 @@ function clientsTable(clients) {
     <thead><tr><th>Cliente</th><th>WhatsApp</th><th>Visitas</th><th>Investido</th><th>Última visita</th><th>Próximo</th><th></th></tr></thead>
     <tbody>
       ${clients.map(client => `<tr class="row-link" data-act="client-open" data-id="${client.id}">
-        <td><div class="client-cell"><span class="mini-avatar ${toneFor(client.name)}">${esc(initials(client.name))}</span><div><strong>${esc(client.name)}</strong><small>${esc(client.email)}</small></div></div></td>
+        <td><div class="client-cell"><span class="mini-avatar ${toneFor(client.name)}">${esc(initials(client.name))}</span><div><strong>${esc(client.name)}</strong>${client.email ? `<small>${esc(client.email)}</small>` : ''}</div></div></td>
         <td>${esc(phoneDisplay(client.phone))}</td>
         <td class="num">${client.visits}</td>
         <td class="num">${money(client.spent)}</td>
@@ -529,7 +522,7 @@ function clientsTable(clients) {
 }
 
 async function viewClientDetail(root, token) {
-  const id = Number(state.param);
+  const id = String(state.param || '');
   if (!id) { location.hash = '#/clientes'; return; }
   const data = await api(`/api/admin/clients/${id}`);
   if (token !== state.renderToken) return;
@@ -550,7 +543,7 @@ async function viewClientDetail(root, token) {
     ? `<table class="adm-table">
         <thead><tr><th>Data</th><th>Serviço</th><th>Status</th><th>Sinal</th><th>Valor</th><th></th></tr></thead>
         <tbody>${data.appointments.map(appointment => {
-          state.apptIndex.set(Number(appointment.id), appointment);
+          state.apptIndex.set(String(appointment.id), appointment);
           return `<tr class="row-link" data-act="appt-open" data-id="${appointment.id}">
             <td><span class="num">${dateShort(appointment.date)}</span><br /><small class="muted">${esc(appointment.time)}</small></td>
             <td>${esc(appointment.service_name)}</td>
@@ -573,7 +566,7 @@ async function viewClientDetail(root, token) {
           <h2>${esc(client.name)}</h2>
           <p>
             <span>${icon('phone', 12)} ${esc(phoneDisplay(client.phone))}</span>
-            <span>${icon('send', 12)} ${esc(client.email)}</span>
+            ${client.email ? `<span>${icon('send', 12)} ${esc(client.email)}</span>` : ''}
             ${client.birthdate ? `<span>${icon('gift', 12)} ${dateShort(client.birthdate)}</span>` : ''}
             ${memberSince ? `<span>${icon('heart', 12)} cliente desde ${monthLong(toISODate(memberSince))}</span>` : ''}
           </p>
@@ -581,7 +574,6 @@ async function viewClientDetail(root, token) {
         <div class="client-actions">
           <a class="btn btn-outline btn-sm" href="${waLink(client.phone, `Olá, ${firstName(client.name)}! Tudo bem?`)}" target="_blank" rel="noopener">${waIcon(13)} WhatsApp</a>
           <button class="btn btn-primary btn-sm" type="button" data-act="new-appt" data-client="${client.id}">${icon('plus', 13)} Agendar</button>
-          <button class="btn btn-outline btn-sm" type="button" data-act="client-reset" data-id="${client.id}">${icon('lock', 13)} Redefinir senha</button>
         </div>
       </div>
       <div class="mini-stats">
@@ -600,10 +592,7 @@ async function viewClientDetail(root, token) {
             <div class="field"><label for="cfName">Nome completo</label><input class="input" id="cfName" value="${esc(client.name)}" maxlength="120" required /></div>
             <div class="field"><label for="cfPhone">WhatsApp com DDD</label><input class="input" id="cfPhone" value="${esc(phoneDisplay(client.phone))}" inputmode="tel" required /></div>
           </div>
-          <div class="form-grid-2">
-            <div class="field"><label for="cfBirth">Aniversário</label><input class="input" id="cfBirth" type="date" value="${esc(client.birthdate || '')}" /></div>
-            <div class="field"><label>E-mail de acesso</label><input class="input" value="${esc(client.email)}" disabled title="O e-mail de acesso não muda por aqui" /></div>
-          </div>
+          <div class="field"><label for="cfBirth">Aniversário</label><input class="input" id="cfBirth" type="date" value="${esc(client.birthdate || '')}" /></div>
           <div class="field"><label for="cfNotes">Anotações internas</label><textarea class="textarea" id="cfNotes" maxlength="1000" placeholder="Alergias, preferências, histórico importante...">${esc(client.notes || '')}</textarea></div>
           <p class="form-error" id="cfError"></p>
           <div style="display:flex;justify-content:flex-end"><button class="btn btn-primary btn-sm" type="submit" id="cfSave">Salvar ficha da cliente</button></div>
@@ -797,7 +786,7 @@ async function openServiceModal(service = null) {
 }
 
 async function toggleService(id) {
-  const service = state.services.find(item => Number(item.id) === Number(id));
+  const service = state.services.find(item => String(item.id) === String(id));
   if (!service) return;
   try {
     await api(`/api/admin/services/${service.id}`, { method: 'PATCH', body: { active: !service.active } });
@@ -874,15 +863,32 @@ async function viewPortfolio(root, token) {
     if (!file) { errorEl.textContent = 'Escolha uma foto para publicar.'; return; }
     const title = $('#pfTitle', root).value.trim();
     if (title.length < 2) { errorEl.textContent = 'Dê um título para a foto.'; return; }
-    const formData = new FormData();
-    formData.append('image', file);
-    formData.append('title', title);
-    formData.append('category', $('#pfCategory', root).value);
-    formData.append('description', $('#pfDesc', root).value.trim());
     const button = $('#pfSave', root);
     setButtonBusy(button, true, 'Publicando...');
     try {
-      await api('/api/admin/portfolio', { method: 'POST', body: formData });
+      const contentType = file.type || 'image/jpeg';
+      const sign = await api('/api/admin/portfolio/sign', {
+        method: 'POST',
+        body: { type: contentType, size: file.size }
+      });
+      const upload = await fetch(sign.signedUrl, {
+        method: 'PUT',
+        credentials: 'same-origin',
+        headers: { 'Content-Type': contentType },
+        body: file
+      });
+      if (!upload.ok) throw new Error('Não foi possível enviar a foto. Tente novamente.');
+      await api('/api/admin/portfolio', {
+        method: 'POST',
+        body: {
+          id: sign.id,
+          path: sign.path,
+          size: file.size,
+          title,
+          category: $('#pfCategory', root).value,
+          description: $('#pfDesc', root).value.trim()
+        }
+      });
       toast('Foto publicada no portfólio.', { type: 'success', title: 'Vitrine atualizada' });
       renderView();
     } catch (error) {
@@ -1249,16 +1255,17 @@ function closeModal() {
   }
 }
 
-function showAccess({ name, email, password, phone }) {
-  const message = accessMessage(name, email, password);
+function showWelcome({ name, phone }) {
+  const accountUrl = `${new URL(bookingLink()).origin}/minha-conta`;
+  const message = `Olá, ${firstName(name)}! Sua ficha no Studio Paula Souza está pronta. Para ver, confirmar ou cancelar seus horários é só entrar em ${accountUrl} e informar seu nome completo e este WhatsApp. Sem senha!`;
   openModal(`
     <button class="modal-close" type="button" data-close aria-label="Fechar">${icon('x', 18)}</button>
-    <h3>Acesso criado</h3>
-    <p class="modal-sub">Envie para ${esc(name)} e ela já consegue agendar sozinha.</p>
+    <h3>Ficha criada</h3>
+    <p class="modal-sub">Envie para ${esc(name)}: ela consulta e gerencia os horários pelo nome completo e WhatsApp, sem senha.</p>
     <div class="access-box">
       <strong>${esc(name)}</strong>
-      <span>E-mail: <code>${esc(email)}</code></span>
-      <span>Senha: <code>${esc(password)}</code></span>
+      <span>WhatsApp: <code>${esc(phoneDisplay(phone))}</code></span>
+      <span>Link: <code>${esc(accountUrl)}</code></span>
       <div class="link-share">
         <button class="btn btn-outline btn-xs" type="button" data-act="copy" data-copy="${esc(enc(message))}">${icon('copy', 12)} Copiar mensagem</button>
         ${phone ? `<a class="btn btn-outline btn-xs" href="${waLink(phone, message)}" target="_blank" rel="noopener">${waIcon(12)} WhatsApp</a>` : ''}
@@ -1282,9 +1289,9 @@ async function openNewAppointment({ clientId = null } = {}) {
     return;
   }
   const initialDate = state.view === 'agenda' ? state.date : todayISO();
-  const activeClients = clients.filter(client => Number(client.id) !== Number(state.user?.id));
+  const activeClients = clients.filter(client => String(client.id) !== String(state.user?.id));
   const clientOptions = activeClients.map(client =>
-    `<option value="${client.id}" ${Number(clientId) === Number(client.id) ? 'selected' : ''}>${esc(client.name)} · ${esc(phoneDisplay(client.phone))}</option>`).join('');
+    `<option value="${client.id}" ${String(clientId) === String(client.id) ? 'selected' : ''}>${esc(client.name)} · ${esc(phoneDisplay(client.phone))}</option>`).join('');
   const serviceOptions = activeServices.map(service =>
     `<option value="${service.id}">${esc(categoryLabel(service.category))} · ${esc(service.name)} · ${money(service.price)}</option>`).join('');
 
@@ -1306,10 +1313,7 @@ async function openNewAppointment({ clientId = null } = {}) {
           <div class="field"><label for="naName">Nome completo</label><input class="input" id="naName" maxlength="120" placeholder="Nome da cliente" /></div>
           <div class="field"><label for="naPhone">WhatsApp com DDD</label><input class="input" id="naPhone" inputmode="tel" placeholder="(27) 99999-0000" /></div>
         </div>
-        <div class="form-grid-2">
-          <div class="field"><label for="naEmail">E-mail de acesso</label><input class="input" id="naEmail" type="email" placeholder="cliente@email.com" /></div>
-          <div class="field"><label for="naBirth">Aniversário (opcional)</label><input class="input" id="naBirth" type="date" /></div>
-        </div>
+        <div class="field"><label for="naBirth">Aniversário (opcional)</label><input class="input" id="naBirth" type="date" /></div>
       </div>
       <div class="form-grid-2">
         <div class="field"><label for="naService">Serviço</label><select class="select" id="naService">${serviceOptions}</select></div>
@@ -1354,7 +1358,7 @@ async function openNewAppointment({ clientId = null } = {}) {
         if (!clientValue) { errorEl.textContent = 'Escolha a cliente ou use o cadastro rápido.'; return; }
 
         const body = {
-          serviceId: Number($('#naService', el).value),
+          serviceId: String($('#naService', el).value),
           date: $('#naDate', el).value,
           time: $('#naTime', el).value,
           status: $('#naStatus', el).value,
@@ -1365,13 +1369,11 @@ async function openNewAppointment({ clientId = null } = {}) {
         if (clientValue === 'new') {
           body.clientName = $('#naName', el).value.trim();
           body.clientPhone = $('#naPhone', el).value.trim();
-          body.clientEmail = $('#naEmail', el).value.trim();
           body.clientBirthdate = $('#naBirth', el).value || null;
           if (body.clientName.length < 2) { errorEl.textContent = 'Informe o nome da cliente.'; return; }
-          if (!body.clientEmail) { errorEl.textContent = 'Informe o e-mail de acesso da cliente.'; return; }
           if (!body.clientPhone) { errorEl.textContent = 'Informe o WhatsApp com DDD.'; return; }
         } else {
-          body.clientId = Number(clientValue);
+          body.clientId = String(clientValue);
         }
         if (!body.date) { errorEl.textContent = 'Escolha a data do atendimento.'; return; }
         if (!body.time) { errorEl.textContent = 'Escolha o horário.'; return; }
@@ -1382,15 +1384,7 @@ async function openNewAppointment({ clientId = null } = {}) {
           const result = await api('/api/admin/appointments', { method: 'POST', body });
           close();
           toast(`Agendamento de ${result.appointment.client_name} criado.`, { type: 'success', title: 'Agenda atualizada' });
-          state.apptIndex.set(Number(result.appointment.id), result.appointment);
-          if (result.clientAccess) {
-            showAccess({
-              name: result.appointment.client_name,
-              email: result.clientAccess.email,
-              password: result.clientAccess.password,
-              phone: result.appointment.client_phone
-            });
-          }
+          state.apptIndex.set(String(result.appointment.id), result.appointment);
           renderView();
         } catch (error) {
           if (error.status === 401) { showGate('Sua sessão expirou. Entre novamente.'); return; }
@@ -1406,18 +1400,17 @@ function openNewClient() {
   openModal(`
     <button class="modal-close" type="button" data-close aria-label="Fechar">${icon('x', 18)}</button>
     <h3>Nova cliente</h3>
-    <p class="modal-sub">Cria a ficha, o histórico e um acesso para ela agendar pelo site.</p>
+    <p class="modal-sub">Cria a ficha e o histórico. Ela consulta os horários pelo nome completo e WhatsApp, sem senha.</p>
     <form class="adm-form" id="ncForm" novalidate>
       <div class="form-grid-2">
         <div class="field"><label for="ncName">Nome completo</label><input class="input" id="ncName" maxlength="120" required /></div>
         <div class="field"><label for="ncPhone">WhatsApp com DDD</label><input class="input" id="ncPhone" inputmode="tel" placeholder="(27) 99999-0000" required /></div>
       </div>
       <div class="form-grid-2">
-        <div class="field"><label for="ncEmail">E-mail de acesso</label><input class="input" id="ncEmail" type="email" required /></div>
+        <div class="field"><label for="ncEmail">E-mail <span class="hint">(opcional)</span></label><input class="input" id="ncEmail" type="email" placeholder="cliente@email.com" /></div>
         <div class="field"><label for="ncBirth">Aniversário (opcional)</label><input class="input" id="ncBirth" type="date" /></div>
       </div>
       <div class="field"><label for="ncNotes">Anotações internas</label><textarea class="textarea" id="ncNotes" maxlength="1000" placeholder="Alergias, preferências, como conheceu o estúdio..."></textarea></div>
-      <p class="inline-note">A senha de acesso é gerada automaticamente e mostrada no próximo passo.</p>
       <p class="form-error" id="ncError"></p>
       <div class="modal-actions">
         <button class="btn btn-outline" type="button" data-close>Cancelar</button>
@@ -1438,17 +1431,15 @@ function openNewClient() {
             body: {
               name: $('#ncName', el).value.trim(),
               phone: $('#ncPhone', el).value.trim(),
-              email: $('#ncEmail', el).value.trim().toLowerCase(),
+              email: $('#ncEmail', el).value.trim().toLowerCase() || null,
               birthdate: $('#ncBirth', el).value || null,
               notes: $('#ncNotes', el).value.trim()
             }
           });
           close();
-          toast('Cliente cadastrada com ficha e acesso.', { type: 'success', title: 'Nova ficha' });
+          toast('Cliente cadastrada com ficha.', { type: 'success', title: 'Nova ficha' });
           state.clients = null;
-          if (result.access?.password) {
-            showAccess({ name: result.client.name, email: result.client.email, password: result.access.password, phone: result.client.phone });
-          }
+          showWelcome({ name: result.client.name, phone: result.client.phone });
           renderView();
         } catch (error) {
           if (error.status === 401) { showGate('Sua sessão expirou. Entre novamente.'); return; }
@@ -1461,7 +1452,7 @@ function openNewClient() {
 }
 
 function openAppointment(id) {
-  const appointment = state.apptIndex.get(Number(id));
+  const appointment = state.apptIndex.get(String(id));
   if (!appointment) return;
   const message = apptMessage(appointment);
   const statusOptions = ['pendente', 'confirmado', 'concluido', 'cancelado', 'faltou'].map(value =>
@@ -1525,7 +1516,7 @@ function openAppointment(id) {
               notes: $('#apNotes', el).value.trim()
             }
           });
-          state.apptIndex.set(Number(updated.id), updated);
+          state.apptIndex.set(String(updated.id), updated);
           toast('Agendamento atualizado.', { type: 'success' });
           close();
           renderView();
@@ -1576,12 +1567,12 @@ function openAppointment(id) {
 
 async function patchAppointment(id, changes) {
   const { appointment } = await api(`/api/admin/appointments/${id}`, { method: 'PATCH', body: changes });
-  state.apptIndex.set(Number(appointment.id), appointment);
+  state.apptIndex.set(String(appointment.id), appointment);
   return appointment;
 }
 
 async function quickStatus(id, quick) {
-  const appointment = state.apptIndex.get(Number(id));
+  const appointment = state.apptIndex.get(String(id));
   if (!appointment) return;
 
   if (quick === 'concluir') {
@@ -1608,48 +1599,36 @@ async function quickStatus(id, quick) {
   }
 }
 
-async function resetClientPassword(id) {
-  const client = state.currentClient && Number(state.currentClient.id) === Number(id)
-    ? state.currentClient
-    : { name: 'cliente', phone: '' };
-  try {
-    const data = await api(`/api/admin/clients/${id}/reset-password`, { method: 'POST' });
-    showAccess({ name: client.name, email: data.email, password: data.password, phone: client.phone });
-  } catch (error) {
-    notifyError(error, 'Não foi possível redefinir');
-  }
-}
-
 /* ============================================================
    notificações em tempo real
    ============================================================ */
+function stopLive() {
+  if (notifTimer) {
+    clearTimeout(notifTimer);
+    notifTimer = null;
+  }
+  setLive(false);
+}
+
 function connectWS() {
-  if (state.ws) {
-    try { state.ws.close(); } catch { /* noop */ }
-  }
-  const protocol = location.protocol === 'https:' ? 'wss:' : 'ws:';
-  let socket;
-  try {
-    socket = new WebSocket(`${protocol}//${location.host}/ws`);
-  } catch {
-    setLive(false);
-    return;
-  }
-  state.ws = socket;
-  socket.addEventListener('open', () => setLive(true));
-  socket.addEventListener('close', () => {
-    if (state.ws !== socket) return;
-    setLive(false);
-    if (state.user) setTimeout(connectWS, 6000);
-  });
-  socket.addEventListener('error', () => {
-    try { socket.close(); } catch { /* noop */ }
-  });
-  socket.addEventListener('message', event => {
+  stopLive();
+  notifSince = Date.now();
+  if (!state.user) return;
+  setLive(true);
+  const tick = async () => {
+    if (!state.user) return;
     try {
-      handleRealtime(JSON.parse(event.data));
-    } catch { /* noop */ }
-  });
+      const data = await api(`/api/notifications?since=${notifSince}`);
+      notifSince = Number(data.now) || Date.now();
+      setLive(true);
+      (data.notifications || []).forEach(handleRealtime);
+    } catch (error) {
+      setLive(false);
+      if (error.status === 401) { showGate('Sua sessão expirou. Entre novamente para continuar.'); return; }
+    }
+    if (state.user) notifTimer = setTimeout(tick, 15000);
+  };
+  tick();
 }
 
 function setLive(on) {
@@ -1679,7 +1658,7 @@ function handleRealtime(event) {
   const liveViews = ['dashboard', 'agenda', 'financeiro', 'retornos'];
   if (liveViews.includes(state.view)) scheduleRefresh();
   else if (event.type === 'client:new' && state.view === 'clientes' && !state.param) scheduleRefresh();
-  else if (state.view === 'clientes' && state.param && Number(event.clientId) === Number(state.param)) scheduleRefresh();
+  else if (state.view === 'clientes' && state.param && String(event.clientId) === String(state.param)) scheduleRefresh();
 }
 
 function scheduleRefresh() {
@@ -1725,7 +1704,7 @@ function handleAction(button, event) {
   const action = button.dataset.act;
   switch (action) {
     case 'new-appt':
-      openNewAppointment({ clientId: button.dataset.client ? Number(button.dataset.client) : null });
+      openNewAppointment({ clientId: button.dataset.client ? String(button.dataset.client) : null });
       break;
     case 'new-client':
       openNewClient();
@@ -1740,14 +1719,11 @@ function handleAction(button, event) {
       if (event.target.closest('a, button')) break;
       location.hash = `#/clientes/${button.dataset.id}`;
       break;
-    case 'client-reset':
-      resetClientPassword(button.dataset.id);
-      break;
     case 'svc-new':
       openServiceModal();
       break;
     case 'svc-edit': {
-      const service = state.services.find(item => Number(item.id) === Number(button.dataset.id));
+      const service = state.services.find(item => String(item.id) === String(button.dataset.id));
       if (service) openServiceModal(service);
       break;
     }
@@ -1796,7 +1772,7 @@ function handleAction(button, event) {
 function bindShell() {
   $('#logoutBtn')?.addEventListener('click', async () => {
     try { await api('/api/auth/logout', { method: 'POST' }); } catch { /* noop */ }
-    if (state.ws) state.ws.onclose = null;
+    stopLive();
     location.href = '/';
   });
 

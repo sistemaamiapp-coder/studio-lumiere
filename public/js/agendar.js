@@ -1,11 +1,28 @@
 import {
   $, $$, esc, api, icon, money, todayISO, addDaysISO, dateLong, isoToDate,
-  durationLabel, toast, setButtonBusy, copyText, waLink, waIcon, phoneDisplay, initials
+  durationLabel, toast, setButtonBusy, copyText, waLink, waIcon, phoneDisplay,
+  pixQrDataUrl
 } from './ui.js';
+
+const IDENTITY_KEY = 'sps.identity';
+
+function savedIdentity() {
+  try {
+    const raw = JSON.parse(localStorage.getItem(IDENTITY_KEY) || 'null');
+    return raw && raw.name && raw.phone ? raw : null;
+  } catch {
+    return null;
+  }
+}
+
+function rememberIdentity(identity) {
+  try { localStorage.setItem(IDENTITY_KEY, JSON.stringify(identity)); } catch { /* modo privado */ }
+}
 
 const state = {
   site: null,
   user: null,
+  client: savedIdentity(),
   step: 1,
   service: null,
   date: null,
@@ -17,8 +34,7 @@ const state = {
   autoPicked: false,
   autoAttempts: 0,
   created: null,
-  pix: null,
-  authTab: 'register'
+  pix: null
 };
 
 const GROUP_META = {
@@ -66,15 +82,12 @@ function toMin(time) {
 function updateHeader() {
   const link = $('#headAccount');
   if (!link) return;
-  if (state.user?.role === 'client') {
-    link.textContent = 'Minha conta';
-    link.href = '/minha-conta';
-  } else if (state.user?.role === 'admin') {
+  if (state.user?.role === 'admin') {
     link.textContent = 'Painel';
     link.href = '/admin';
   } else {
-    link.textContent = 'Entrar';
-    link.href = '/entrar';
+    link.textContent = 'Meus agendamentos';
+    link.href = '/minha-conta';
   }
   $$('a[data-wa]').forEach(node => {
     if (!state.site) return;
@@ -158,7 +171,7 @@ function renderServices() {
   }).join('');
 
   $$('.service-option', wrap).forEach(button => {
-    button.addEventListener('click', () => chooseService(Number(button.dataset.service)));
+    button.addEventListener('click', () => chooseService(String(button.dataset.service)));
   });
 }
 
@@ -372,7 +385,7 @@ function chooseTime(time) {
   state.time = time;
   renderSummary();
   $$('.slot-btn').forEach(button => button.classList.toggle('selected', button.dataset.time === time));
-  if (state.user?.role === 'client') goTo(4);
+  if (state.client) goTo(4);
   else goTo(3);
 }
 
@@ -417,35 +430,6 @@ function renderIdentify() {
   const area = $('#identifyArea');
   if (!area) return;
 
-  if (state.user?.role === 'client') {
-    const user = state.user;
-    area.innerHTML = `
-      <div class="account-card">
-        <div class="account-person">
-          <span class="avatar">${esc(initials(user.name))}</span>
-          <div>
-            <strong>${esc(user.name)}</strong>
-            <span>${esc(user.email)}</span>
-            <span>${esc(phoneDisplay(user.phone))}</span>
-          </div>
-          <span class="chip chip-pago">${icon('check', 12)} Conta verificada</span>
-        </div>
-        <p class="form-note">O agendamento entra direto no seu histórico, com acompanhamento de manutenção e lembretes.</p>
-      </div>
-      <div class="identify-actions">
-        <button class="btn btn-quiet" id="switchAccount" type="button">Usar outra conta</button>
-        <button class="btn btn-primary btn-lg" id="identifyContinue" type="button">Continuar ${icon('arrowRight', 16)}</button>
-      </div>`;
-    $('#identifyContinue')?.addEventListener('click', () => goTo(4));
-    $('#switchAccount')?.addEventListener('click', async () => {
-      await api('/api/auth/logout', { method: 'POST' }).catch(() => {});
-      state.user = null;
-      updateHeader();
-      renderIdentify();
-    });
-    return;
-  }
-
   if (state.user?.role === 'admin') {
     area.innerHTML = `
       <div class="empty-state">
@@ -466,120 +450,74 @@ function renderIdentify() {
     return;
   }
 
-  const tabs = `
-    <div class="auth-tabs" role="tablist">
-      <button type="button" class="auth-tab ${state.authTab === 'register' ? 'active' : ''}" data-tab="register" role="tab">Criar conta</button>
-      <button type="button" class="auth-tab ${state.authTab === 'login' ? 'active' : ''}" data-tab="login" role="tab">Já tenho conta</button>
-    </div>`;
-
-  const registerPanel = `
-    <form id="registerForm" class="auth-form form-grid" ${state.authTab === 'register' ? '' : 'hidden'}>
-      <div class="field">
-        <label for="regName">Nome completo</label>
-        <input class="input" id="regName" name="name" autocomplete="name" placeholder="Como podemos te chamar?" required>
-      </div>
-      <div class="form-row">
-        <div class="field">
-          <label for="regPhone">WhatsApp com DDD</label>
-          <input class="input" id="regPhone" name="phone" inputmode="tel" autocomplete="tel" placeholder="(27) 99999-0000" required>
+  if (state.client) {
+    area.innerHTML = `
+      <div class="account-card">
+        <div class="account-person">
+          <span class="avatar">${icon('user', 19)}</span>
+          <div>
+            <strong>${esc(state.client.name)}</strong>
+            <span>${esc(phoneDisplay(state.client.phone))}</span>
+          </div>
+          <span class="chip chip-pago">${icon('check', 12)} Confirmado</span>
         </div>
-        <div class="field">
-          <label for="regBirth">Aniversário <span class="hint">(opcional)</span></label>
-          <input class="input" id="regBirth" name="birthdate" type="date">
-        </div>
+        <p class="form-note">Seu horário fica ligado a este nome e WhatsApp — é assim que você consulta ou cancela depois.</p>
       </div>
-      <div class="field">
-        <label for="regEmail">E-mail</label>
-        <input class="input" id="regEmail" name="email" type="email" autocomplete="email" placeholder="voce@email.com" required>
-      </div>
-      <div class="field">
-        <label for="regPass">Senha</label>
-        <input class="input" id="regPass" name="password" type="password" autocomplete="new-password" placeholder="Pelo menos 6 caracteres" minlength="6" required>
-        <span class="hint">Usada para acessar seu histórico e gerenciar horários.</span>
-      </div>
-      <div class="field">
-        <label class="checkbox"><input type="checkbox" name="terms" required> Concordo em receber lembretes do estúdio pelo WhatsApp.</label>
-      </div>
-      <p class="field-error" id="registerError" role="alert"></p>
-      <button class="btn btn-primary btn-lg btn-block" type="submit">Criar conta e continuar ${icon('arrowRight', 16)}</button>
-      <p class="form-note center">Já é cliente? <button type="button" class="text-link" data-tab="login">Entrar na minha conta</button></p>
-    </form>`;
-
-  const loginPanel = `
-    <form id="loginForm" class="auth-form form-grid" ${state.authTab === 'login' ? '' : 'hidden'}>
-      <div class="field">
-        <label for="loginEmail">E-mail</label>
-        <input class="input" id="loginEmail" name="email" type="email" autocomplete="email" placeholder="voce@email.com" required>
-      </div>
-      <div class="field">
-        <label for="loginPass">Senha</label>
-        <input class="input" id="loginPass" name="password" type="password" autocomplete="current-password" required>
-      </div>
-      <p class="field-error" id="loginError" role="alert"></p>
-      <button class="btn btn-primary btn-lg btn-block" type="submit">Entrar e continuar ${icon('arrowRight', 16)}</button>
-      <p class="form-note center"><a class="text-link" id="forgotLink" href="#" target="_blank" rel="noopener">Esqueci minha senha</a> · <button type="button" class="text-link" data-tab="register">Criar uma conta</button></p>
-    </form>`;
-
-  area.innerHTML = `<div class="auth-card">${tabs}${registerPanel}${loginPanel}</div>`;
-
-  $$('[data-tab]', area).forEach(button => {
-    button.addEventListener('click', () => {
-      state.authTab = button.dataset.tab;
+      <div class="identify-actions">
+        <button class="btn btn-quiet" id="switchAccount" type="button">Usar outros dados</button>
+        <button class="btn btn-primary btn-lg" id="identifyContinue" type="button">Continuar ${icon('arrowRight', 16)}</button>
+      </div>`;
+    $('#identifyContinue')?.addEventListener('click', () => goTo(4));
+    $('#switchAccount')?.addEventListener('click', () => {
+      state.client = null;
       renderIdentify();
     });
-  });
-
-  const forgot = $('#forgotLink');
-  if (forgot) {
-    forgot.href = waLink(state.site.business.whatsapp, 'Olá! Esqueci minha senha do site do Studio Paula Souza e preciso de ajuda para acessar minha conta.');
+    return;
   }
 
-  $('#registerForm')?.addEventListener('submit', async event => {
-    event.preventDefault();
-    const form = event.currentTarget;
-    const button = form.querySelector('button[type="submit"]');
-    const errorBox = $('#registerError');
-    errorBox.textContent = '';
-    const data = Object.fromEntries(new FormData(form));
-    setButtonBusy(button, true, 'Criando conta...');
-    try {
-      const result = await api('/api/auth/register', {
-        method: 'POST',
-        body: { name: data.name, email: data.email, phone: data.phone, password: data.password, birthdate: data.birthdate || null }
-      });
-      state.user = result.user;
-      updateHeader();
-      toast(`Conta criada, ${result.user.name.split(' ')[0]}! Agora confirme seu horário.`, { type: 'success', title: 'Bem-vinda ao Paula Souza' });
-      goTo(4);
-    } catch (error) {
-      errorBox.textContent = error.message;
-    } finally {
-      setButtonBusy(button, false);
-    }
-  });
+  area.innerHTML = `
+    <div class="auth-card">
+      <form id="identifyForm" class="auth-form form-grid">
+        <div class="field">
+          <label for="idName">Nome completo</label>
+          <input class="input" id="idName" name="name" autocomplete="name" placeholder="Como no seu cadastro" required>
+          <span class="hint">Use o mesmo nome completo e celular das outras marcações.</span>
+        </div>
+        <div class="form-row">
+          <div class="field">
+            <label for="idPhone">WhatsApp com DDD</label>
+            <input class="input" id="idPhone" name="phone" inputmode="tel" autocomplete="tel" placeholder="(27) 99999-0000" required>
+          </div>
+          <div class="field">
+            <label for="idBirth">Aniversário <span class="hint">(opcional)</span></label>
+            <input class="input" id="idBirth" name="birthdate" type="date">
+          </div>
+        </div>
+        <p class="field-error" id="identifyError" role="alert"></p>
+        <button class="btn btn-primary btn-lg btn-block" type="submit">Continuar ${icon('arrowRight', 16)}</button>
+        <p class="form-note center">Não precisa de senha. Quer ver horários já marcados? <a class="text-link" href="/minha-conta">Consultar pelo nome e celular</a>.</p>
+      </form>
+    </div>`;
 
-  $('#loginForm')?.addEventListener('submit', async event => {
+  $('#identifyForm')?.addEventListener('submit', event => {
     event.preventDefault();
     const form = event.currentTarget;
-    const button = form.querySelector('button[type="submit"]');
-    const errorBox = $('#loginError');
+    const errorBox = $('#identifyError');
     errorBox.textContent = '';
     const data = Object.fromEntries(new FormData(form));
-    setButtonBusy(button, true, 'Entrando...');
-    try {
-      const result = await api('/api/auth/login', {
-        method: 'POST',
-        body: { email: data.email, password: data.password }
-      });
-      state.user = result.user;
-      updateHeader();
-      toast(`Que bom te ver, ${result.user.name.split(' ')[0]}!`, { type: 'success' });
-      goTo(4);
-    } catch (error) {
-      errorBox.textContent = error.message;
-    } finally {
-      setButtonBusy(button, false);
+    const name = String(data.name || '').trim().replace(/\s+/g, ' ');
+    const phone = String(data.phone || '').trim();
+    if (name.split(' ').filter(Boolean).length < 2) {
+      errorBox.textContent = 'Informe seu nome completo (nome e sobrenome).';
+      return;
     }
+    if (phone.replace(/\D/g, '').length < 10) {
+      errorBox.textContent = 'Confira o WhatsApp com DDD.';
+      return;
+    }
+    state.client = { name, phone, birthdate: data.birthdate || null };
+    rememberIdentity(state.client);
+    goTo(4);
   });
 }
 
@@ -593,7 +531,7 @@ function renderConfirm() {
   }
   const service = state.service;
   const deposit = depositOf(service);
-  const user = state.user;
+  const client = state.client;
   area.innerHTML = `
     <div class="confirm-card">
       <div class="confirm-head">
@@ -607,7 +545,7 @@ function renderConfirm() {
       <ul class="confirm-list">
         <li>${icon('calendar', 16)}<span><em>Data</em><strong>${dateLong(state.date)}</strong></span></li>
         <li>${icon('clock', 16)}<span><em>Horário</em><strong>${state.time} — ${endTime(state.time, service.duration_min)}</strong></span></li>
-        ${user ? `<li>${icon('user', 16)}<span><em>Cliente</em><strong>${esc(user.name)} · ${esc(phoneDisplay(user.phone) || '')}</strong></span></li>` : ''}
+        ${client ? `<li>${icon('user', 16)}<span><em>Cliente</em><strong>${esc(client.name)} · ${esc(phoneDisplay(client.phone) || '')}</strong></span></li>` : ''}
       </ul>
       <label class="field">
         <span class="field-label">Alguma observação? <span class="hint">(opcional)</span></span>
@@ -631,15 +569,28 @@ function renderConfirm() {
 async function submitBooking() {
   const button = $('#confirmBtn');
   if (!button || !state.service || !state.date || !state.time) return;
+  if (!state.client) { goTo(3); return; }
   const notes = $('#bookingNotes')?.value || '';
   setButtonBusy(button, true, 'Reservando...');
   try {
-    const { appointment } = await api('/api/appointments', {
+    const result = await api('/api/appointments', {
       method: 'POST',
-      body: { serviceId: state.service.id, date: state.date, time: state.time, notes }
+      body: {
+        name: state.client.name,
+        phone: state.client.phone,
+        birthdate: state.client.birthdate || null,
+        serviceId: state.service.id,
+        date: state.date,
+        time: state.time,
+        notes
+      }
     });
-    state.created = appointment;
-    await loadPix();
+    state.created = result.appointment;
+    state.pix = result.pix || null;
+    if (result.client?.name) {
+      state.client = { ...state.client, ...result.client };
+      rememberIdentity(state.client);
+    }
     goTo(5);
   } catch (error) {
     if (error.status === 409) {
@@ -657,15 +608,6 @@ async function submitBooking() {
 }
 
 /* ---------------- sucesso + Pix ---------------- */
-async function loadPix() {
-  if (!state.created) return;
-  try {
-    state.pix = await api(`/api/deposit/${state.created.id}/pix`);
-  } catch {
-    state.pix = null;
-  }
-}
-
 function renderSuccess() {
   const area = $('#successArea');
   if (!area) return;
@@ -674,13 +616,15 @@ function renderSuccess() {
   const service = state.service;
   const paid = appointment.deposit_status;
   const pix = state.pix;
+  const qrSrc = pix?.payload ? (pix.qr || pixQrDataUrl(pix.payload)) : '';
   const depositAmount = pix?.amount ?? Number(appointment.deposit_amount ?? depositOf(service));
   const price = Number(appointment.price ?? service.price);
-  const ticketNumber = `LUM-${String(appointment.id).padStart(4, '0')}`;
-  const firstName = String(state.user?.name || '').split(' ')[0];
+  const ticketNumber = `SPS-${String(appointment.id).replace(/-/g, '').slice(0, 6).toUpperCase()}`;
+  const clientName = state.client?.name || appointment.client_name || '';
+  const firstName = String(clientName).split(' ')[0];
 
   const waMessage = [
-    `Olá, Studio Paula Souza! Sou ${state.user?.name || ''}.`,
+    `Olá, Studio Paula Souza! Sou ${clientName}.`,
     `Acabei de agendar ${service.name} para ${dateLong(appointment.date)} às ${appointment.time} (${ticketNumber}).`,
     `Sinal de ${money(depositAmount)} via Pix. Pode confirmar meu horário?`
   ].join(' ');
@@ -706,7 +650,7 @@ function renderSuccess() {
         ${statusChip}
       </div>
       <div class="pix-layout">
-        ${pix?.qr ? `<div class="pix-qr"><img src="${pix.qr}" alt="QR Code para pagamento do sinal via Pix"></div>` : `<div class="pix-qr pix-qr-empty">${icon('pix', 34)}<span>Use a chave ao lado</span></div>`}
+        ${qrSrc ? `<div class="pix-qr"><img src="${esc(qrSrc)}" alt="QR Code para pagamento do sinal via Pix"></div>` : `<div class="pix-qr pix-qr-empty">${icon('pix', 34)}<span>Use a chave ao lado</span></div>`}
         <div class="pix-info">
           <div class="pix-key"><span>Chave Pix</span><strong>${esc(pix?.pixKey || state.site.business.pixKey)}</strong></div>
           ${pix?.payload ? `<div class="pix-copy">
@@ -777,7 +721,10 @@ function renderSuccess() {
     const button = event.currentTarget;
     setButtonBusy(button, true, 'Avisando...');
     try {
-      const result = await api(`/api/my/appointments/${appointment.id}/deposit`, { method: 'POST' });
+      const result = await api(`/api/my/appointments/${appointment.id}/deposit`, {
+        method: 'POST',
+        body: { name: state.client.name, phone: state.client.phone }
+      });
       state.created = result.appointment;
       toast('Avisamos o estúdio. Você recebe a confirmação pelo WhatsApp.', { type: 'success', title: 'Sinal informado' });
       renderSuccess();
@@ -833,7 +780,7 @@ async function init() {
   goTo(1, { scroll: false });
 
   const params = new URLSearchParams(location.search);
-  const wanted = Number(params.get('servico'));
+  const wanted = String(params.get('servico') || '');
   if (wanted) {
     const service = state.site.services.find(item => item.id === wanted);
     if (service) {
@@ -844,7 +791,7 @@ async function init() {
     }
   }
   if (params.get('conta') === '1') {
-    toast('Entre na sua conta para ver e gerenciar seus agendamentos.', { type: 'info' });
+    toast('Consulte seus horários com o nome completo e o WhatsApp usados na marcação.', { type: 'info' });
   }
 
   $$('[data-back]').forEach(button => {

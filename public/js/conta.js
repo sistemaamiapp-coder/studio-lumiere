@@ -1,12 +1,31 @@
 import {
   $, $$, esc, api, icon, money, dateLong, dateShort, weekdayShort, durationLabel,
   statusBadge, depositBadge, toast, confirmAction, waLink, waIcon, phoneDisplay,
-  normalizePhone, initials, firstName, setButtonBusy, initHeader, copyText
+  normalizePhone, initials, firstName, setButtonBusy, initHeader, copyText, pixQrDataUrl
 } from './ui.js';
+
+const IDENTITY_KEY = 'sps.identity';
+
+function savedIdentity() {
+  try {
+    const raw = JSON.parse(localStorage.getItem(IDENTITY_KEY) || 'null');
+    return raw && raw.name && raw.phone ? raw : null;
+  } catch {
+    return null;
+  }
+}
+
+function rememberIdentity(identity) {
+  try { localStorage.setItem(IDENTITY_KEY, JSON.stringify(identity)); } catch { /* modo privado */ }
+}
+
+function forgetIdentity() {
+  try { localStorage.removeItem(IDENTITY_KEY); } catch { /* modo privado */ }
+}
 
 const state = {
   site: null,
-  user: null,
+  identity: null,
   data: null,
   pixTarget: null,
   refreshing: false,
@@ -62,6 +81,14 @@ function waStudio(text) {
   return waLink(state.site.business.whatsapp, text);
 }
 
+function identityBody() {
+  return {
+    name: state.identity.name,
+    phone: state.identity.phone,
+    birthdate: state.identity.birthdate || null
+  };
+}
+
 /* ---------------- próximo horário ---------------- */
 function renderNext() {
   const wrap = $('#nextWrap');
@@ -87,7 +114,7 @@ function renderNext() {
   if (dep !== 'pago') {
     actions.push(`<button class="btn btn-light btn-sm" type="button" data-pix="${next.id}">${icon('pix', 15)} ${dep === 'informado' ? 'Ver sinal Pix' : 'Pagar sinal via Pix'}</button>`);
   }
-  actions.push(`<a class="btn btn-outline btn-sm" href="${waStudio(`Olá! Sou ${state.user.name} e tenho um horário de ${next.service_name} em ${dateLong(next.date)} às ${next.time}. Gostaria de falar sobre ele.`)}" target="_blank" rel="noopener">${waIcon(14)} Falar no estúdio</a>`);
+  actions.push(`<a class="btn btn-outline btn-sm" href="${waStudio(`Olá! Sou ${state.identity.name} e tenho um horário de ${next.service_name} em ${dateLong(next.date)} às ${next.time}. Gostaria de falar sobre ele.`)}" target="_blank" rel="noopener">${waIcon(14)} Falar no estúdio</a>`);
   if (canCancel(next)) {
     actions.push(`<button class="btn btn-outline btn-sm" type="button" data-cancel="${next.id}">Cancelar</button>`);
   }
@@ -218,18 +245,19 @@ function renderAppointments() {
 
 /* ---------------- cabeçalho e estúdio ---------------- */
 function renderHeader() {
-  const first = firstName(state.user.name);
+  const first = firstName(state.identity.name);
   $('#accountFirstName').textContent = first || 'cliente';
   const upcoming = state.data.upcoming.length;
   $('#accountLead').textContent = upcoming
     ? `Você tem ${upcoming} horário${upcoming === 1 ? '' : 's'} marcado${upcoming === 1 ? '' : 's'}. Tudo organizado aqui, sem depender de conversa no WhatsApp.`
     : 'Seus horários, retornos e histórico em um só lugar. Vamos marcar seu próximo cuidado?';
-  $('#headName').textContent = first || 'Minha conta';
-  $('#headAvatar').textContent = initials(state.user.name);
-  $('#profileName').value = state.user.name || '';
-  $('#profilePhone').value = phoneDisplay(state.user.phone) || '';
-  $('#profileBirth').value = state.user.birthdate ? String(state.user.birthdate).slice(0, 10) : '';
-  $('#profileEmail').textContent = state.user.email || '—';
+  $('#headName').textContent = first || 'Meus agendamentos';
+  $('#headAvatar').textContent = initials(state.identity.name);
+  $('#profileNameText').textContent = state.identity.name || '—';
+  $('#profilePhoneText').textContent = phoneDisplay(state.identity.phone) || '—';
+  $('#profileBirthText').textContent = state.identity.birthdate
+    ? new Intl.DateTimeFormat('pt-BR').format(new Date(`${String(state.identity.birthdate).slice(0, 10)}T12:00:00`))
+    : 'Não informado';
   $('#cancelPolicy').textContent = `${state.site.business.cancelHours}h`;
 }
 
@@ -252,26 +280,68 @@ function renderStudio() {
   });
 }
 
-/* ---------------- dados ---------------- */
-async function loadData() {
-  const data = await api('/api/my/appointments');
+/* ---------------- identidade ---------------- */
+function showLookup(prefill = true) {
+  stopPolling();
+  state.identity = null;
+  state.data = null;
+  $('#lookupCard').hidden = false;
+  $('#accountBody').hidden = true;
+  $('#accountFirstName').textContent = 'bem-vinda';
+  $('#accountLead').textContent = 'Informe seu nome completo e WhatsApp para consultar seus horários.';
+  $('#profileNameText').textContent = '—';
+  $('#profilePhoneText').textContent = '—';
+  $('#profileBirthText').textContent = '—';
+  $('#headName').textContent = 'Meus agendamentos';
+  $('#headAvatar').textContent = '··';
+  $('#changeBtn').hidden = true;
+  const saved = prefill ? savedIdentity() : null;
+  $('#lookupName').value = saved?.name || '';
+  $('#lookupPhone').value = saved ? phoneDisplay(saved.phone) : '';
+  $('#lookupBirth').value = saved?.birthdate || '';
+  if (window.matchMedia('(min-width: 900px)').matches) $('#lookupName').focus();
+}
+
+function showAccount() {
+  $('#lookupCard').hidden = true;
+  $('#accountBody').hidden = false;
+  $('#changeBtn').hidden = false;
+}
+
+async function loadIdentity(identity) {
+  const data = await api('/api/my/appointments', { method: 'POST', body: identity });
+  state.identity = {
+    name: data.user.name,
+    phone: data.user.phone,
+    birthdate: data.user.birthdate || null
+  };
   state.data = data;
-  state.user = data.user;
+  rememberIdentity(state.identity);
+}
+
+function renderAll() {
+  renderHeader();
+  renderNext();
+  renderStats();
+  renderMaintenance();
+  renderAppointments();
 }
 
 async function refresh(showToast = false) {
+  if (!state.identity) return;
   if (state.refreshing) { state.refreshQueued = true; return; }
   state.refreshing = true;
   try {
-    await loadData();
-    renderHeader();
-    renderNext();
-    renderStats();
-    renderMaintenance();
-    renderAppointments();
+    await loadIdentity(identityBody());
+    renderAll();
     if (showToast) toast('Seus horários foram atualizados.', { type: 'info', title: 'Agenda atualizada' });
   } catch (error) {
-    toast(error.message, { type: 'error' });
+    if (error.status === 404) {
+      forgetIdentity();
+      showLookup();
+    } else {
+      toast(error.message, { type: 'error' });
+    }
   } finally {
     state.refreshing = false;
     if (state.refreshQueued) {
@@ -289,10 +359,11 @@ function closePix() {
 
 function renderPix(pix) {
   const informado = pix.depositStatus === 'informado';
+  const qrSrc = pix.qr || pixQrDataUrl(pix.payload || '');
   const box = $('#pixContent');
   box.innerHTML = `
     <div class="modal-pix-grid">
-      <div class="pix-qr-l"><img src="${esc(pix.qr)}" alt="QR Code para pagamento do sinal via Pix"></div>
+      <div class="pix-qr-l">${qrSrc ? `<img src="${esc(qrSrc)}" alt="QR Code para pagamento do sinal via Pix">` : ''}</div>
       <div class="pix-side">
         <div class="pix-amount"><span>Sinal de</span><strong>${money(pix.amount)}</strong></div>
         <div class="pix-key-line"><span>Chave Pix</span>${esc(pix.pixKey)}</div>
@@ -306,7 +377,7 @@ function renderPix(pix) {
           ${informado
             ? `<span class="pix-report-ok">${icon('clock', 15)} Aviso enviado — o estúdio confirma o recebimento.</span>`
             : `<button class="btn btn-primary btn-sm" type="button" data-pix-paid>${icon('check', 15)} Já fiz o Pix</button>`}
-          <a class="btn btn-outline btn-sm" href="${waStudio(`Olá! Sou ${state.user.name}. Paguei o sinal de ${pix.serviceName} (${dateShort(pix.date)} às ${pix.time}) e estou enviando o comprovante.`)}" target="_blank" rel="noopener">${waIcon(14)} Enviar comprovante</a>
+          <a class="btn btn-outline btn-sm" href="${waStudio(`Olá! Sou ${state.identity.name}. Paguei o sinal de ${pix.serviceName} (${dateShort(pix.date)} às ${pix.time}) e estou enviando o comprovante.`)}" target="_blank" rel="noopener">${waIcon(14)} Enviar comprovante</a>
         </div>
       </div>
     </div>
@@ -323,7 +394,7 @@ function renderPix(pix) {
     const button = event.currentTarget;
     setButtonBusy(button, true, 'Avisando...');
     try {
-      await api(`/api/my/appointments/${pix.appointmentId}/deposit`, { method: 'POST' });
+      await api(`/api/my/appointments/${pix.appointmentId}/deposit`, { method: 'POST', body: identityBody() });
       toast('Avisamos o estúdio. Você recebe a confirmação pelo WhatsApp.', { type: 'success', title: 'Sinal informado' });
       pix.depositStatus = 'informado';
       renderPix(pix);
@@ -343,8 +414,7 @@ async function openPix(appointment) {
   $('#pixContent').innerHTML = `<div class="loading-row"><span class="spinner"></span> Gerando seu Pix...</div>`;
   modal.classList.add('open');
   try {
-    const pix = await api(`/api/deposit/${appointment.id}/pix`);
-    // o modal permanece aberto somente para o horário atual
+    const pix = await api(`/api/deposit/${appointment.id}/pix`, { method: 'POST', body: identityBody() });
     if (state.pixTarget?.id !== appointment.id) return;
     renderPix(pix);
     if (pix.depositStatus === 'pago') {
@@ -357,49 +427,6 @@ async function openPix(appointment) {
 }
 
 /* ---------------- ações ---------------- */
-async function submitProfile(event) {
-  event.preventDefault();
-  const form = event.currentTarget;
-  const button = form.querySelector('button[type="submit"]');
-  const body = {
-    name: $('#profileName').value.trim(),
-    phone: normalizePhone($('#profilePhone').value),
-    birthdate: $('#profileBirth').value || null
-  };
-  setButtonBusy(button, true, 'Salvando...');
-  try {
-    const { user } = await api('/api/my/profile', { method: 'PATCH', body });
-    state.user = user;
-    state.data.user = user;
-    renderHeader();
-    toast('Seus dados de contato foram atualizados.', { type: 'success', title: 'Dados salvos' });
-  } catch (error) {
-    toast(error.message, { type: 'error' });
-  } finally {
-    setButtonBusy(button, false);
-  }
-}
-
-async function submitPassword(event) {
-  event.preventDefault();
-  const form = event.currentTarget;
-  const button = form.querySelector('button[type="submit"]');
-  const body = {
-    currentPassword: $('#currentPass').value,
-    newPassword: $('#newPass').value
-  };
-  setButtonBusy(button, true, 'Salvando...');
-  try {
-    await api('/api/my/password', { method: 'POST', body });
-    form.reset();
-    toast('Sua nova senha já está valendo.', { type: 'success', title: 'Senha salva' });
-  } catch (error) {
-    toast(error.message, { type: 'error' });
-  } finally {
-    setButtonBusy(button, false);
-  }
-}
-
 async function cancelAppointment(row) {
   const ok = await confirmAction({
     title: 'Cancelar este horário?',
@@ -410,7 +437,7 @@ async function cancelAppointment(row) {
   });
   if (!ok) return;
   try {
-    await api(`/api/my/appointments/${row.id}/cancel`, { method: 'POST' });
+    await api(`/api/my/appointments/${row.id}/cancel`, { method: 'POST', body: identityBody() });
     toast('Seu horário foi cancelado.', { type: 'success', title: 'Agendamento cancelado' });
     await refresh();
   } catch (error) {
@@ -420,7 +447,7 @@ async function cancelAppointment(row) {
 
 async function confirmPresence(row) {
   try {
-    await api(`/api/my/appointments/${row.id}/confirm`, { method: 'POST' });
+    await api(`/api/my/appointments/${row.id}/confirm`, { method: 'POST', body: identityBody() });
     toast('Presença confirmada. Te esperamos!', { type: 'success' });
     await refresh();
   } catch (error) {
@@ -429,29 +456,25 @@ async function confirmPresence(row) {
 }
 
 function findAppointment(id) {
-  return state.data?.appointments.find(row => Number(row.id) === Number(id)) || null;
+  return state.data?.appointments.find(row => String(row.id) === String(id)) || null;
 }
 
-async function logout() {
-  try { await api('/api/auth/logout', { method: 'POST' }); } catch { /* segue para a home */ }
-  location.assign('/');
+/* ---------------- atualização periódica ---------------- */
+let refreshTimer = null;
+
+function stopPolling() {
+  if (refreshTimer) {
+    clearInterval(refreshTimer);
+    refreshTimer = null;
+  }
 }
 
-/* ---------------- tempo real ---------------- */
-function connectWS() {
-  try {
-    const proto = location.protocol === 'https:' ? 'wss' : 'ws';
-    const socket = new WebSocket(`${proto}://${location.host}/ws`);
-    socket.addEventListener('message', event => {
-      let payload;
-      try { payload = JSON.parse(event.data); } catch { return; }
-      const type = String(payload.type || '');
-      if (!type.startsWith('appointment:') && !type.startsWith('deposit:')) return;
-      if (Number(payload.clientId) !== Number(state.user?.id)) return;
-      refresh(false);
-    });
-    socket.addEventListener('close', () => setTimeout(connectWS, 5000));
-  } catch { /* sem tempo real, a página continua funcionando */ }
+function startPolling() {
+  stopPolling();
+  refreshTimer = setInterval(() => {
+    if (!state.identity || document.hidden) return;
+    refresh(false);
+  }, 60000);
 }
 
 /* ---------------- init ---------------- */
@@ -459,42 +482,69 @@ async function init() {
   hydrateStaticIcons();
   initHeader();
 
-  let site = null;
   try {
-    site = await api('/api/site');
-    state.site = site;
+    state.site = await api('/api/site');
   } catch (error) {
     toast(error.message, { type: 'error' });
     return;
   }
 
-  try {
-    await loadData();
-  } catch (error) {
-    if (error.status === 401) {
-      location.replace('/entrar?next=/minha-conta');
+  renderStudio();
+  showLookup();
+
+  const saved = savedIdentity();
+  if (saved) {
+    try {
+      await loadIdentity(saved);
+      showAccount();
+      renderAll();
+      startPolling();
+    } catch (error) {
+      if (error.status === 404) showLookup();
+      else toast(error.message, { type: 'error' });
+    }
+  }
+
+  $('#lookupForm')?.addEventListener('submit', async event => {
+    event.preventDefault();
+    const form = event.currentTarget;
+    const button = form.querySelector('button[type="submit"]');
+    const errorBox = $('#lookupError');
+    errorBox.textContent = '';
+    const name = $('#lookupName').value.trim().replace(/\s+/g, ' ');
+    const phone = normalizePhone($('#lookupPhone').value);
+    const birthdate = $('#lookupBirth').value || null;
+    if (name.split(' ').filter(Boolean).length < 2) {
+      errorBox.textContent = 'Informe seu nome completo (nome e sobrenome).';
       return;
     }
-    toast(error.message, { type: 'error' });
-    return;
-  }
+    if (phone.length < 10 || phone.length > 11) {
+      errorBox.textContent = 'Confira o WhatsApp com DDD.';
+      return;
+    }
+    setButtonBusy(button, true, 'Buscando...');
+    try {
+      await loadIdentity({ name, phone, birthdate });
+      showAccount();
+      renderAll();
+      startPolling();
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    } catch (error) {
+      errorBox.textContent = error.message;
+    } finally {
+      setButtonBusy(button, false);
+    }
+  });
 
-  if (state.user.role === 'admin') {
-    location.replace('/admin');
-    return;
-  }
-
-  renderHeader();
-  renderNext();
-  renderStats();
-  renderMaintenance();
-  renderAppointments();
-  renderStudio();
-
-  $('#profileForm').addEventListener('submit', submitProfile);
-  $('#passwordForm').addEventListener('submit', submitPassword);
-  $('#logoutBtn').addEventListener('click', logout);
-  $('#mobileLogout')?.addEventListener('click', event => { event.preventDefault(); logout(); });
+  $('#changeBtn')?.addEventListener('click', () => {
+    forgetIdentity();
+    showLookup();
+  });
+  $('#mobileChange')?.addEventListener('click', event => {
+    event.preventDefault();
+    forgetIdentity();
+    showLookup();
+  });
 
   $('#pixClose').addEventListener('click', closePix);
   $('#pixModal').addEventListener('click', event => {
@@ -523,8 +573,6 @@ async function init() {
       if (row) openPix(row);
     }
   });
-
-  connectWS();
 }
 
 init();

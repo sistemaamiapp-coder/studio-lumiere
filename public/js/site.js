@@ -140,6 +140,19 @@ function handleHeroImage() {
   image.addEventListener('error', () => image.classList.add('missing'));
 }
 
+let siteSignature = '';
+
+function applySite(data) {
+  const signature = JSON.stringify(data);
+  if (signature === siteSignature) return;
+  siteSignature = signature;
+  setWhatsAppLinks(data.business);
+  applyContact(data.business);
+  renderServices(data.services);
+  renderPortfolio(data.portfolio);
+  document.title = `${data.business.name} — ${data.business.tagline}`;
+}
+
 async function init() {
   hydrateStaticIcons();
   initHeader();
@@ -149,12 +162,11 @@ async function init() {
   $('#year').textContent = new Date().getFullYear();
 
   try {
-    const data = await api('/api/site');
-    setWhatsAppLinks(data.business);
-    applyContact(data.business);
-    renderServices(data.services);
-    renderPortfolio(data.portfolio);
-    document.title = `${data.business.name} — ${data.business.tagline}`;
+    applySite(await api('/api/site'));
+    setInterval(async () => {
+      if (document.hidden) return;
+      try { applySite(await api('/api/site')); } catch { /* tenta no próximo ciclo */ }
+    }, 60000);
   } catch (error) {
     $('#serviceGroups').innerHTML = `<p class="muted">Não foi possível carregar os serviços agora. <a class="link-arrow" href="/agendar">Tente pelo agendamento</a>.</p>`;
     $('#portfolioGrid').innerHTML = '';

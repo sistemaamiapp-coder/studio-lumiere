@@ -51,7 +51,7 @@
       <a href="#retornos">Retornos</a>
       <a href="#horarios">Meus horários</a>
       <a href="#estudio">Estúdio</a>
-      <a class="quiet-link" href="#" id="mobileLogout">Sair da conta</a>
+      <a class="quiet-link" href="#" id="mobileChange">Trocar dados</a>
     </div>
   </header>
 
@@ -68,15 +68,46 @@
             <span class="icon" data-icon="plus" data-size="16"></span>
             Novo agendamento
           </a>
-          <button class="btn btn-outline" id="logoutBtn" type="button">
-            <span class="icon" data-icon="logout" data-size="16"></span>
-            Sair
+          <button class="btn btn-outline" id="changeBtn" type="button">
+            <span class="icon" data-icon="user" data-size="16"></span>
+            Trocar dados
           </button>
         </div>
       </div>
 
       <div class="account-grid">
         <div class="account-main">
+          <section class="panel-card lookup-card" id="lookupCard" hidden>
+            <div class="panel-card-head">
+              <div>
+                <h3>Consultar meus horários</h3>
+                <p>Informe o nome completo e o WhatsApp usados na marcação. Sem login e sem senha.</p>
+              </div>
+            </div>
+            <form class="profile-form" id="lookupForm">
+              <div class="field">
+                <label for="lookupName">Nome completo</label>
+                <input class="input" id="lookupName" name="name" autocomplete="name" placeholder="Como você marcou" required>
+              </div>
+              <div class="form-row">
+                <div class="field">
+                  <label for="lookupPhone">WhatsApp com DDD</label>
+                  <input class="input" id="lookupPhone" name="phone" inputmode="tel" autocomplete="tel" placeholder="(27) 99999-0000" required>
+                </div>
+                <div class="field">
+                  <label for="lookupBirth">Aniversário <span class="hint">(opcional)</span></label>
+                  <input class="input" id="lookupBirth" name="birthdate" type="date">
+                </div>
+              </div>
+              <p class="field-error" id="lookupError" role="alert"></p>
+              <div class="save-row">
+                <button class="btn btn-primary btn-sm" type="submit">Ver meus horários</button>
+              </div>
+            </form>
+            <p class="form-note">Usou um nome um pouco diferente? Fale com o estúdio no WhatsApp que a gente ajusta a ficha.</p>
+          </section>
+
+          <div id="accountBody" hidden>
           <div id="nextWrap">
             <div class="next-card"><div class="loading-row" style="color:rgba(255,255,255,.7)"><span class="spinner"></span> Buscando seu próximo horário...</div></div>
           </div>
@@ -107,6 +138,7 @@
             </div>
             <div id="appointmentsArea"><div class="loading-row"><span class="spinner"></span> Carregando...</div></div>
           </section>
+          </div>
         </div>
 
         <aside class="account-side">
@@ -114,49 +146,15 @@
             <div class="panel-card-head">
               <div>
                 <h3>Seus dados</h3>
-                <p>Mantém sua ficha e os lembretes em dia.</p>
+                <p>É assim que o estúdio te encontra na agenda.</p>
               </div>
             </div>
-            <form class="profile-form" id="profileForm">
-              <div class="field">
-                <label for="profileName">Nome completo</label>
-                <input class="input" id="profileName" name="name" autocomplete="name" required>
-              </div>
-              <div class="field">
-                <label for="profilePhone">WhatsApp com DDD</label>
-                <input class="input" id="profilePhone" name="phone" inputmode="tel" autocomplete="tel" required>
-              </div>
-              <div class="field">
-                <label for="profileBirth">Aniversário <span class="hint">(opcional)</span></label>
-                <input class="input" id="profileBirth" name="birthdate" type="date">
-              </div>
-              <div class="readonly-line"><span>E-mail de acesso</span><strong id="profileEmail">—</strong></div>
-              <div class="save-row">
-                <button class="btn btn-primary btn-sm" type="submit">Salvar meus dados</button>
-              </div>
-            </form>
-          </div>
-
-          <div class="panel-card profile-card">
-            <div class="panel-card-head">
-              <div>
-                <h3>Senha</h3>
-                <p>Troque quando quiser, com pelo menos 6 caracteres.</p>
-              </div>
+            <div class="profile-form">
+              <div class="readonly-line"><span>Nome completo</span><strong id="profileNameText">—</strong></div>
+              <div class="readonly-line"><span>WhatsApp</span><strong id="profilePhoneText">—</strong></div>
+              <div class="readonly-line"><span>Aniversário</span><strong id="profileBirthText">—</strong></div>
+              <p class="form-note">Precisa corrigir algo? Fale com o estúdio no WhatsApp que a gente atualiza sua ficha.</p>
             </div>
-            <form class="profile-form" id="passwordForm">
-              <div class="field">
-                <label for="currentPass">Senha atual</label>
-                <input class="input" id="currentPass" name="currentPassword" type="password" autocomplete="current-password" required>
-              </div>
-              <div class="field">
-                <label for="newPass">Nova senha</label>
-                <input class="input" id="newPass" name="newPassword" type="password" minlength="6" autocomplete="new-password" required>
-              </div>
-              <div class="save-row">
-                <button class="btn btn-outline btn-sm" type="submit">Salvar nova senha</button>
-              </div>
-            </form>
           </div>
 
           <div class="panel-card studio-card" id="estudio">
@@ -201,6 +199,7 @@
     </div>
   </div>
 
+  <script src="/js/vendor/qrcode.js"></script>
   <script type="module" src="/js/conta.js"></script>
 </body>
 </html>

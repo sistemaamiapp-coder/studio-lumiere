@@ -30,9 +30,12 @@ jobs:
 
       - name: Checar sintaxe
         run: |
-          for file in server/*.js scripts/*.mjs public/js/*.js; do
+          for file in server/*.js scripts/*.mjs functions/*.mjs serverless/*.mjs public/js/*.js; do
             node --check "$file"
           done
 
       - name: Rodar rotina de fumaça
         run: npm test
+
+      - name: Empacotar worker (Cloudflare)
+        run: npx wrangler deploy --dry-run --outdir .wrangler-dry-run
